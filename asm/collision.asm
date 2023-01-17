@@ -19,6 +19,7 @@
 .endscope
 
 S_CHECK_COLLISION:
+	jsr S_GET_TMP_POS
 	jsr S_CHECK_X_COLLISION
 	lda mario_x_direction
 	bne @CHECK_ISJUMP
@@ -30,8 +31,7 @@ S_CHECK_COLLISION:
 @CHECK_ISJUMP:
 	lda mario_isjump
 	beq @CHECK_GROUND
-	jsr S_GET_TMP_POS					; 戻り値：X, YレジスタにマリオのX, Y座標
-	jsr S_CHECK_ISBLOCK					; S_GET_TMP_POSの戻り値をそのまま利用（X、Yレジスタ）
+	jsr S_CHECK_ISBLOCK
 	lda ver_speed
 	add mario_posy
 	sta mario_posy
@@ -71,7 +71,6 @@ S_CHECK_COLLISION:
 	; add S_CHECK_COLLISION::tmp_posY
 	; sta mario_posy
 
-	; helloworld
 	rts  ; -----------------------------
 
 
