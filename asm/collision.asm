@@ -37,7 +37,41 @@ S_CHECK_COLLISION:
 	sta mario_posy
 	rts  ; -----------------------------
 @CHECK_GROUND:
+	ldx S_CHECK_COLLISION::tmp_block_posX
+	ldy S_CHECK_COLLISION::tmp_block_posY
+	iny
+	cpy #$0f
+	bpl @SKIP1
+	jsr S_GET_ISCOLLISION
+	bne @SKIP2
+	lda S_CHECK_COLLISION::tmp_posX
+	and #%00001111
+	beq @SKIP1
+	inx
+	jsr S_GET_ISCOLLISION
+	beq @SKIP1
+@SKIP2:
+	lda mario_posy
+	and #%11110000
+	add #$10
+	sub mario_posy
+	sta ver_speed
+@SKIP1:
+	lda ver_speed
+	add mario_posy
+	sta mario_posy
 
+	; 1クロック縮めるなら(@SKIP2後)
+	; lda S_CHECK_COLLISION::tmp_posY
+	; and #%00001111
+	; cnn
+	; sta ver_speed
+	; @SKIP1
+	; lda ver_speed
+	; add S_CHECK_COLLISION::tmp_posY
+	; sta mario_posy
+
+	; helloworld
 	rts  ; -----------------------------
 
 
