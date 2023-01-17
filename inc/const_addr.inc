@@ -54,7 +54,7 @@ move_amount_block = $2c
 move_amount_pixel = $2d
 
 ver_pos_origin = $2e					; ジャンプ開始時の位置
-ver_speed = $30							; 速度
+ver_speed = $30							; 速度（累積のため補正値は含めない）
 ver_force_decimal_part = $31			; 現在の加速度
 ver_force_fall = $32					; 降下時の加速度
 ver_speed_decimal_part = $33			; 加速度の増加値
@@ -87,6 +87,8 @@ sound_ch1_frame_cnt = $47
 cannot_control = $48		; ポーズ音が鳴っている時動けないようにする、死んだ時などにも使える
 ; pause_timer = $49						; ポーズフラグが変更されたあと操作を受け付けない時間
 ; stop_game_timer = $4a					; 土管に入る、パワーアップなど動作を止める時間
+
+mario_speed_Y = $49		; 補正値を合わせたスピード
 
 
 ; カウンター（動作チェック用）

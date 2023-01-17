@@ -104,7 +104,7 @@ MOVE_PROCESS:
 		lda ver_force_fall
 		sta ver_force_decimal_part
 @SKIP2:
-		jsr PHYSICS;
+		jsr PHYSICS
 		rts  ; -------------------------
 
 
@@ -124,26 +124,11 @@ PHYSICS:
 		inx
 		stx tmp1
 @ENDIF1:
-		ldx #$00
-		lda ver_speed					; こっちを使うとスピードだけ取り出せる
-		add tmp1
-		sta ver_speed
-		bpl @SKIP1
-		inx								; speed < 0
-@SKIP1:
-		stx mario_isjump
-
-		; lda mario_posy
-		; add ver_speed
-		; add tmp1
-		; sta mario_posy
 
 		lda ver_speed_decimal_part
 		add ver_force_decimal_part
 		sta ver_speed_decimal_part
-		bcs @SKIP3
-		rts
-@SKIP3:
+		bcc @SKIP3
 		lda #$00
 		sta ver_speed_decimal_part
 
@@ -152,13 +137,16 @@ PHYSICS:
 		cpx #DOWN_SPEED_LIMIT
 		bmi @SKIP2
 		lda ver_speed_decimal_part
-		bmi @SKIP2
+		bpl @SKIP2
 		ldx #DOWN_SPEED_LIMIT
 		lda #$00
 		sta ver_speed_decimal_part
 @SKIP2:
 		stx ver_speed
-
+@SKIP3:
+		lda ver_speed
+		add tmp1
+		sta mario_speed_Y
 		rts  ; -------------------------
 
 

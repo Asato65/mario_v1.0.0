@@ -57,7 +57,7 @@ S_CHECK_COLLISION:
 	sub mario_posy
 	sta ver_speed
 @SKIP1:
-	lda ver_speed
+	lda mario_speed_Y
 	add mario_posy
 	sta mario_posy
 
