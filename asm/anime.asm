@@ -69,12 +69,12 @@ S_STORE_MARIO:
 
 		; Y座標
 		lda mario_posy
-		cmp #$c0						; 床のあたり判定（一時）
-		bmi @NOCOLLISION
-		beq @NOCOLLISION
-		ldx #$c0
-		jsr S_RESET_PARAM_JUMP
-		lda #$c0
+		;cmp #$c0						; 床のあたり判定（一時）
+		;bmi @NOCOLLISION
+		;beq @NOCOLLISION
+		;ldx #$c0
+		;jsr S_RESET_PARAM_JUMP
+		;lda #$c0
 @NOCOLLISION:
 		;sta mario_posy
 

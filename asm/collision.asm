@@ -68,6 +68,12 @@ S_CHECK_COLLISION:
 	add #$10
 	sub mario_posy
 	sta ver_speed
+	lda mario_speed_Y
+	add mario_posy
+	sta mario_posy
+	tax
+	jsr S_RESET_PARAM_JUMP
+	rts  ; -----------------------------
 @SKIP1:
 	lda mario_speed_Y
 	add mario_posy
@@ -133,7 +139,7 @@ S_CHECK_X_COLLISION:
 	beq @END_R
 	lda S_CHECK_COLLISION::tmp_posX
 	and #%11110000
-	sub mario_posx
+	sub S_CHECK_COLLISION::tmp_posX
 	cnn
 	sta mario_pixel_speed
 	lda #$00
