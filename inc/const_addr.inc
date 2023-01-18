@@ -50,8 +50,8 @@ mario_pixel_speed = $28
 mario_speed_remainder = $29
 move_amount_sum = $2a
 move_amount_disp = $2b
-move_amount_block = $2c
-move_amount_pixel = $2d
+mario_posx_block = $2c					; 画面内でどのブロックにいるか（posXの上位4bit）
+mario_posx_pixel = $2d					; 1ブロックのどのピクセルにいるか（posXの下位4bit）
 
 ver_pos_origin = $2e					; ジャンプ開始時の位置
 ver_speed = $30							; 速度（累積のため補正値は含めない）
@@ -64,7 +64,7 @@ mario_posx = $35
 mario_posy = $36
 mario_isfly = $37
 
-mario_speed_x = $38
+mario_speed_x = $38		; 未使用
 
 mario_anime_counter = $39
 mario_anime_timer = $3a
@@ -88,7 +88,7 @@ cannot_control = $48		; ポーズ音が鳴っている時動けないように�
 ; pause_timer = $49						; ポーズフラグが変更されたあと操作を受け付けない時間
 ; stop_game_timer = $4a					; 土管に入る、パワーアップなど動作を止める時間
 
-mario_speed_Y = $49		; 補正値を合わせたスピード
+mario_speed_Y = $49		; 補正値を合わせたスピード（使わない？）
 
 
 ; カウンター（動作チェック用）

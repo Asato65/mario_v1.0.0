@@ -23,9 +23,9 @@ S_STORE_MARIO:
 		; X座標
 		lda mario_pixel_speed
 		ldx mario_x_direction			; 分岐用
-		bne @SKIP1
+		bne	@SKIP_CNN
 		cnn
-@SKIP1:
+@SKIP_CNN:
 		add mario_posx
 		cmp #MARIO_MAX_POSX
 		bmi @NOSCROLL					; スクロールするかの分岐

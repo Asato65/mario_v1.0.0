@@ -117,36 +117,32 @@ PHYSICS:
 		lda ver_pos_decimal_part
 		add ver_force_decimal_part
 		sta ver_pos_decimal_part
-		bcc @ENDIF1
+		bcc @SKIP_OVERFLOW
 		; オーバーフローしてたら
 		ldx #$00
 		stx ver_pos_decimal_part
 		inx
-		stx tmp1
-@ENDIF1:
-
+		inc mario_posy					; 補正値があったらここで修正
+@SKIP_OVERFLOW:
 		lda ver_speed_decimal_part
 		add ver_force_decimal_part
 		sta ver_speed_decimal_part
-		bcc @SKIP3
+		bcc @END_SUB
 		lda #$00
 		sta ver_speed_decimal_part
 
 		ldx ver_speed
 		inx
 		cpx #DOWN_SPEED_LIMIT
-		bmi @SKIP2
+		bmi @STORE_VER_SPEED
 		lda ver_speed_decimal_part
-		bpl @SKIP2
+		bpl @STORE_VER_SPEED
 		ldx #DOWN_SPEED_LIMIT
 		lda #$00
 		sta ver_speed_decimal_part
-@SKIP2:
+@STORE_VER_SPEED:
 		stx ver_speed
-@SKIP3:
-		lda ver_speed
-		add tmp1
-		sta mario_speed_Y
+@END_SUB:
 		rts  ; -------------------------
 
 
