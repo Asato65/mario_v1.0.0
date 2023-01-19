@@ -103,8 +103,6 @@ MOVE_PROCESS:
 @SKIP1:
 		lda ver_force_fall
 		sta ver_force_decimal_part
-		lda #$00
-		sta mario_isjump
 @SKIP2:
 		jsr PHYSICS
 		rts  ; -------------------------

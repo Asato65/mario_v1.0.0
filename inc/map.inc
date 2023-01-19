@@ -5,7 +5,7 @@
 MAP1_1_POS:
 	; 1
 	;.byte $21	; X 2, Y 1に配置
-	.byte $02, $03, $3b
+	.byte $02, $03, $32
 	.byte $98
 	.byte $a5, $a8
 	.byte $b5, $b8

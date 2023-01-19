@@ -63,16 +63,21 @@ S_CHECK_COLLISION:
 	jsr S_GET_ISCOLLISION
 	beq @SKIP1
 @SKIP2:
-	lda mario_posy
+	lda S_CHECK_COLLISION::tmp_posY
 	and #%11110000
 	add #$10
-	sub mario_posy
-	sta ver_speed
-	lda mario_speed_Y
+	sub S_CHECK_COLLISION::tmp_posY
+	cnn
 	add mario_posy
 	sta mario_posy
-	tax
-	jsr S_RESET_PARAM_JUMP
+	ldx #$00
+	lda VER_FORCE_DECIMAL_PART_DATA, X
+	sta ver_force_decimal_part
+	lda VER_FALL_FORCE_DATA
+	sta ver_force_fall
+	stx ver_speed_decimal_part
+	stx ver_speed
+	stx mario_isjump
 	rts  ; -----------------------------
 @SKIP1:
 	lda mario_speed_Y
