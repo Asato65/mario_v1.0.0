@@ -112,8 +112,6 @@ MOVE_PROCESS:
 ; ------------------------------------------------------------------------------
 
 PHYSICS:
-		lda #$00
-		sta tmp1  ; 累積計算の補正値
 		lda ver_pos_decimal_part
 		add ver_force_decimal_part
 		sta ver_pos_decimal_part
@@ -122,7 +120,7 @@ PHYSICS:
 		ldx #$00
 		stx ver_pos_decimal_part
 		inx
-		inc mario_posy					; 補正値があったらここで修正
+		stx ver_pos_fix_val				; 補正値があったらここで修正
 @SKIP_OVERFLOW:
 		lda ver_speed_decimal_part
 		add ver_force_decimal_part
@@ -142,6 +140,10 @@ PHYSICS:
 		sta ver_speed_decimal_part
 @STORE_VER_SPEED:
 		stx ver_speed
+		bmi @END_SUB
+		lda #$00
+		sta mario_isjump
+
 @END_SUB:
 		rts  ; -------------------------
 

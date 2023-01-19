@@ -39,6 +39,7 @@ S_CHECK_COLLISION:
 	beq @CHECK_GROUND
 	jsr S_CHECK_ISBLOCK
 	lda ver_speed
+	add ver_pos_fix_val
 	add mario_posy
 	sta mario_posy
 
@@ -65,10 +66,10 @@ S_CHECK_COLLISION:
 @SKIP2:
 	lda S_CHECK_COLLISION::tmp_posY
 	and #%11110000
-	add #$10
-	sub S_CHECK_COLLISION::tmp_posY
-	cnn
-	add mario_posy
+	;add #$10
+	;sub S_CHECK_COLLISION::tmp_posY
+	;cnn
+	;add mario_posy
 	sta mario_posy
 	ldx #$00
 	lda VER_FORCE_DECIMAL_PART_DATA, X
@@ -77,10 +78,11 @@ S_CHECK_COLLISION:
 	sta ver_force_fall
 	stx ver_speed_decimal_part
 	stx ver_speed
-	stx mario_isjump
+	stx mario_isfly
 	rts  ; -----------------------------
 @SKIP1:
-	lda mario_speed_Y
+	lda ver_speed
+	add ver_pos_fix_val
 	add mario_posy
 	sta mario_posy
 
