@@ -33,6 +33,11 @@ S_CHECK_COLLISION:
 	sta mario_x_direction
 	lda mario_posx						; 左端を越えた時、位置を左端で固定
 	sta mario_pixel_speed				; X座標(1F前)-左端 = X座標-0 = X座標 をスピードにする
+	jsr S_GET_MOVE_AMOUNT_X
+	lda S_CHECK_COLLISION::move_amount_sum
+	sta move_amount_sum
+	lda S_CHECK_COLLISION::move_amount_disp
+	sta move_amount_disp
 	rts  ; -----------------------------
 @CHECK_ISJUMP:
 	lda mario_isjump
@@ -66,10 +71,10 @@ S_CHECK_COLLISION:
 @SKIP2:
 	lda S_CHECK_COLLISION::tmp_posY
 	and #%11110000
-	;add #$10
-	;sub S_CHECK_COLLISION::tmp_posY
-	;cnn
-	;add mario_posy
+	; add #$10
+	; sub S_CHECK_COLLISION::tmp_posY
+	; cnn
+	; add mario_posy
 	sta mario_posy
 	ldx #$00
 	lda VER_FORCE_DECIMAL_PART_DATA, X
@@ -79,22 +84,17 @@ S_CHECK_COLLISION:
 	stx ver_speed_decimal_part
 	stx ver_speed
 	stx mario_isfly
+	jsr S_GET_MOVE_AMOUNT_X
+	lda S_CHECK_COLLISION::move_amount_sum
+	sta move_amount_sum
+	lda S_CHECK_COLLISION::move_amount_disp
+	sta move_amount_disp
 	rts  ; -----------------------------
 @SKIP1:
 	lda ver_speed
 	add ver_pos_fix_val
 	add mario_posy
 	sta mario_posy
-
-	; 1クロック縮めるなら(@SKIP2後)
-	; lda S_CHECK_COLLISION::tmp_posY
-	; and #%00001111
-	; cnn
-	; sta ver_speed
-	; @SKIP1
-	; lda ver_speed
-	; add S_CHECK_COLLISION::tmp_posY
-	; sta mario_posy
 
 	jsr S_GET_MOVE_AMOUNT_X
 	lda S_CHECK_COLLISION::move_amount_sum
@@ -254,8 +254,11 @@ S_GET_ISCOLLISION:
 
 S_GET_BLOCK:
 	sty S_CHECK_COLLISION::tmp2
+	txa
+	add #$f0
 	lda move_amount_disp
-	and #%00000001
+	adc #$00
+	and #$01
 	add #$04
 	sta addr_upper
 	tya

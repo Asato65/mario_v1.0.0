@@ -34,7 +34,7 @@ S_SOUND:
 	ldx sound_ch1_num					; フレームカウンタの更新
 	dex
 	ldy sound_ch1_counter
-	ldabs SOUND_TIME					; SOUND_TIME[num][cnt]
+	ldarr SOUND_TIME					; SOUND_TIME[num][cnt]
 	bne @SKIP_SOUND_END
 	lda #$00
 	sta sound_ch1_counter
@@ -50,13 +50,13 @@ S_SOUND:
 	ldx sound_ch1_num					; 周波数下位8bitの設定
 	dex
 	ldy sound_ch1_counter
-	ldabs SOUND_ADDR_LOWER
+	ldarr SOUND_ADDR_LOWER
 	sta SOUND_CH1_3
 
 	ldx sound_ch1_num					; 音の長さ（bit0-4）、周波数上位3bit（bit5-7）の設定
 	dex
 	ldy sound_ch1_counter
-	ldabs SOUND_ADDR_UPPER
+	ldarr SOUND_ADDR_UPPER
 	sta SOUND_CH1_4
 
 	ldx sound_ch1_num
