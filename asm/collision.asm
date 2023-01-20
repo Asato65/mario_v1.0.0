@@ -268,6 +268,7 @@ S_GET_BLOCK:
 	asl
 	sta tmp1
 	txa
+	and #%00001111
 	ora tmp1
 	sta addr_lower
 	ldy #$00

@@ -140,6 +140,7 @@ PHYSICS:
 		sta ver_speed_decimal_part
 @STORE_VER_SPEED:
 		stx ver_speed
+		txa
 		bmi @END_SUB
 		lda #$00
 		sta mario_isjump

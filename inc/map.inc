@@ -5,19 +5,14 @@
 MAP1_1_POS:
 	; 1
 	;.byte $21	; X 2, Y 1に配置
-	.byte $02, $03, $32
-	.byte $98
-	.byte $a5, $a8
-	.byte $b5, $b8
-	.byte $c5, $c8
-	.byte $d8
+	.byte $4c, $5b, $6a, $79, $88, $97, $a6, $b5, $c4, $d3, $e2
 	.byte $ef
 	; 2
 	.byte $46
 	.byte $7b
 	.byte $8b
 	.byte $9b
-	.byte $fc
+	.byte $fa
 	.byte $ef
 	; 3
 	.byte $13
@@ -33,12 +28,7 @@ MAP1_1_POS:
 	.byte $ff
 
 MAP1_1_OBJ:
-	.byte BLOCK, BLOCK, BLOCK
-	.byte BLOCK	; 42 => レンガ
-	.byte BLOCK, QBLOCK
-	.byte BLOCK, BLOCK
-	.byte BLOCK, QBLOCK
-	.byte BLOCK
+	.byte BLOCK, BLOCK, BLOCK, BLOCK, BLOCK, BLOCK, BLOCK, BLOCK, BLOCK, BLOCK, BLOCK
 	.byte $ef
 	;2
 	.byte BLOCK
