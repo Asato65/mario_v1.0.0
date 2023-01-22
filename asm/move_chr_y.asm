@@ -133,8 +133,8 @@ PHYSICS:
 		inx
 		cpx #DOWN_SPEED_LIMIT
 		bmi @STORE_VER_SPEED
-		lda ver_speed_decimal_part
-		bpl @STORE_VER_SPEED
+		;lda ver_speed_decimal_part
+		;bpl @STORE_VER_SPEED
 		ldx #DOWN_SPEED_LIMIT
 		lda #$00
 		sta ver_speed_decimal_part

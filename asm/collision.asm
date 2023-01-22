@@ -62,6 +62,8 @@ S_CHECK_COLLISION:
 	bpl @SKIP1
 	jsr S_GET_ISCOLLISION
 	bne @SKIP2
+	lda #$01
+	sta mario_isfly
 	lda S_CHECK_COLLISION::tmp_posX
 	and #%00001111
 	beq @SKIP1
@@ -314,7 +316,7 @@ S_GET_TMP_POS:
 	bne @SKIP1
 	cnn
 @SKIP1:
-	add S_CHECK_COLLISION::move_amount_sum
+	add move_amount_sum
 	tax
 	sta S_CHECK_COLLISION::tmp_posX
 	lsr

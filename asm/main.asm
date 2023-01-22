@@ -48,6 +48,12 @@ S_MAIN:
 		bne @PAUSING_SKIP
 
 		; ポーズがかかっていないときの動作
+		;lda con_player1				; 多段ジャンプの実装
+		;and #CON_A
+		;bne @SKIP_UPDATE_FLY_FLUG
+		; lda #$00
+		;sta mario_isfly
+@SKIP_UPDATE_FLY_FLUG:
 		jsr S_MOVE_PLAYER				; プレイヤー移動
 
 @PAUSING_SKIP:
