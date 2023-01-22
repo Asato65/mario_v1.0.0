@@ -144,13 +144,20 @@ S_CHECK_X_COLLISION:
 	lda #$01
 	jsr S_CHECK_ISBLOCK_LR
 	beq @END_R
-	lda S_CHECK_COLLISION::tmp_posX
-	and #%11110000
-	sub S_CHECK_COLLISION::tmp_posX
-	cnn
-	sta mario_pixel_speed
+	lda move_amount_sum
+	and #%00001111
+	bne @SKIP4
 	lda #$00
-	sta mario_x_direction
+	sta mario_pixel_speed
+	rts  ; -----------------------------
+@SKIP4:
+	lda move_amount_sum
+	and #%11110000
+	add #$10
+	sub move_amount_sum
+	sta mario_pixel_speed
+	;lda #$00
+	;sta mario_x_direction
 @END_R:
 	rts  ; -----------------------------
 

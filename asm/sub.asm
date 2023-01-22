@@ -93,7 +93,7 @@ S_SET_SCROLL:
 		lda main_disp					; メイン画面セット
 		ora #%10001000
 		sta PPU_SET1
-		
+
 		lda map_scroll					; スクロール座標セット
 		sta PPU_SCROLL
 		lda #$00
