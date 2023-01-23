@@ -1,3 +1,7 @@
+.scope S_GET_ISCOLLISION
+	blockid = $d6
+.endscope
+
 ; ------------------------------------------------------------------------------
 ; 当たり判定
 ; 引数なし
@@ -40,6 +44,7 @@ S_CHECK_COLLISION:
 	sta move_amount_disp
 	rts  ; -----------------------------
 @CHECK_ISJUMP:
+	jsr S_GET_TMP_POS
 	lda mario_isjump
 	beq @CHECK_GROUND
 	jsr S_CHECK_ISBLOCK
@@ -55,6 +60,7 @@ S_CHECK_COLLISION:
 	sta move_amount_disp
 	rts  ; -----------------------------
 @CHECK_GROUND:
+	jsr S_GET_TMP_POS
 	ldx S_CHECK_COLLISION::tmp_block_posX
 	ldy S_CHECK_COLLISION::tmp_block_posY
 	iny
@@ -174,10 +180,20 @@ S_CHECK_X_COLLISION:
 S_CHECK_ISBLOCK:
 	ldx S_CHECK_COLLISION::tmp_block_posX
 	ldy S_CHECK_COLLISION::tmp_block_posY
-	jsr S_GET_ISCOLLISION
-	and #%00000011
-	asl
-	asl
+	;jsr S_GET_ISCOLLISION
+	jsr S_GET_BLOCK
+	sta S_GET_ISCOLLISION::blockid
+	jsr S_IS_COLLISIONBLOCK
+	beq @SKIP2
+	lda S_CHECK_COLLISION::tmp_posX
+	and #%00001111
+	cmp #$08
+	bmi @SKIP3
+	lda #%00000100
+	bne @SKIP2
+@SKIP3:
+	lda #%00001000
+@SKIP2:
 	sta S_CHECK_COLLISION::tmp1
 
 	lda S_CHECK_COLLISION::tmp_posX
@@ -185,9 +201,20 @@ S_CHECK_ISBLOCK:
 	beq @SKIP1
 
 	inx
-	jsr S_GET_ISCOLLISION
-	and #%00000110
-	lsr
+	;jsr S_GET_ISCOLLISION
+	jsr S_GET_BLOCK
+	sta S_GET_ISCOLLISION::blockid
+	jsr S_IS_COLLISIONBLOCK
+	beq @SKIP4
+	lda S_CHECK_COLLISION::tmp_posX
+	and #%00001111
+	cmp #$09
+	bpl @SKIP5
+	lda #%00000010
+	bne @SKIP4
+@SKIP5:
+	lda #%00000001
+@SKIP4:
 	ora S_CHECK_COLLISION::tmp1
 	sta S_CHECK_COLLISION::tmp1
 @SKIP1:
@@ -229,10 +256,6 @@ S_CHECK_ISBLOCK:
 ; 戻り値なし
 ; ------------------------------------------------------------------------------
 
-.scope S_GET_ISCOLLISION
-	blockid = $d6
-.endscope
-
 S_GET_ISCOLLISION:
 	jsr S_GET_BLOCK
 	sta S_GET_ISCOLLISION::blockid
@@ -243,9 +266,9 @@ S_GET_ISCOLLISION:
 @SKIP1:
 	lda S_CHECK_COLLISION::tmp_posX
 	and #%00001111
-	cmp #$05
+	cmp #$09
 	bmi @SKIP2
-	cmp #$0c
+	cmp #$0a
 	bpl @SKIP2
 	lda #%00000010						; 05~0bH
 	rts  ; -----------------------------
