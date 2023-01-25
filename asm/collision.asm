@@ -29,7 +29,7 @@ S_CHECK_COLLISION:
 	jsr S_GET_TMP_POS
 	jsr S_CHECK_X_COLLISION
 	jsr S_FIX_LEFT
-@CHECK_ISJUMP:
+; CHECK_ISJUMP:
 	jsr S_GET_TMP_POS
 	lda mario_isjump
 	beq @CHECK_GROUND
@@ -169,7 +169,7 @@ S_CHECK_X_COLLISION:
 S_CHECK_ISBLOCK:
 	ldx S_CHECK_COLLISION::tmp_block_posX
 	ldy S_CHECK_COLLISION::tmp_block_posY
-	;jsr S_GET_ISCOLLISION
+	; jsr S_GET_ISCOLLISION
 	jsr S_GET_BLOCK
 	jsr S_IS_COLLISIONBLOCK
 	beq @SKIP1
@@ -186,7 +186,7 @@ S_CHECK_ISBLOCK:
 	beq @SKIP2
 
 	inx
-	;jsr S_GET_ISCOLLISION
+	; jsr S_GET_ISCOLLISION
 	jsr S_GET_BLOCK
 	jsr S_IS_COLLISIONBLOCK
 	beq @SKIP3
@@ -390,6 +390,8 @@ S_GET_MOVE_AMOUNT_X:
 	sta S_CHECK_COLLISION::move_amount_sum
 	bcc @SKIP_INC_DISP
 @INC_DISP:
+	lda move_amount_sum					; 左端にいったときのインクリメントを防ぐ
+	bpl @SKIP_INC_DISP
 	ldx move_amount_disp
 	inx
 	stx S_CHECK_COLLISION::move_amount_disp
