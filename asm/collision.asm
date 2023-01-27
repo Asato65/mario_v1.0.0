@@ -34,20 +34,11 @@ S_CHECK_COLLISION:
 	jsr S_GET_TMP_POS
 	lda mario_isjump
 	beq @CHECK_GROUND
-	jsr S_CHECK_ISBLOCK
+	jsr S_CHK_COLLISION_UP
 	lda ver_speed
 	add ver_pos_fix_val
 	add mario_posy
 	sta mario_posy
-
-	jsr S_GET_MOVE_AMOUNT_X
-	jsr S_GET_TMP_POS
-	;inc S_CHECK_COLLISION::tmp_block_posY
-	lda S_CHECK_COLLISION::tmp_posY
-	and #%11110000
-	sta S_CHECK_COLLISION::tmp_posY
-	jsr S_CHECK_X_COLLISION
-	jsr S_FIX_LEFT
 
 	jsr S_GET_MOVE_AMOUNT_X
 	lda S_CHECK_COLLISION::move_amount_sum
@@ -75,12 +66,6 @@ S_CHECK_COLLISION:
 	jsr S_GET_ISCOLLISION
 	beq @SKIP1
 @SKIP2:									; 下にブロックがあったときの処理
-	; lda mario_posy
-	; and #%00001111
-	; cnn
-	; sta ver_speed
-	; add mario_posy
-	; sta mario_posy
 	lda S_CHECK_COLLISION::tmp_posY
 	and #%11110000
 	sta mario_posy
@@ -91,7 +76,6 @@ S_CHECK_COLLISION:
 	sta ver_force_fall
 	stx ver_speed_decimal_part
 	stx ver_speed
-	;stx ver_pos_fix_val
 	stx mario_isfly
 	jsr S_GET_MOVE_AMOUNT_X
 	lda S_CHECK_COLLISION::move_amount_sum
@@ -123,63 +107,66 @@ S_CHECK_COLLISION:
 S_CHECK_X_COLLISION:
 	lda mario_x_direction
 	bne @R
-	; L
+	jsr S_CHK_COLLISION_L
+@R:
+	jsr S_CHK_COLLISION_R
+	rts  ; -----------------------------
+
+
+; ------------------------------------------------------------------------------
+; 左の当たり判定、座標ずらし
+; ------------------------------------------------------------------------------
+
+S_CHK_COLLISION_L:
 	lda S_CHECK_COLLISION::tmp_posX
 	and #%00001111
 	cmp #$0c
-	bpl @SKIP1
-	lda S_CHECK_COLLISION::save_pixel_speed
-	sta mario_pixel_speed
-	rts  ; -----------------------------
-@SKIP1:									; 0CH~(0FH)なら
+	bmi @END_L
+	; 0CH~(0FH)なら
 	lda #$00							; mario_x_direction（引数に利用）
 	jsr S_CHECK_ISBLOCK_LR
-	beq @END_L
+	beq @FIX_L_OVER
 	lda move_amount_sum
 	and #%11110000
-	bne @SKIP5
-	lda #$00
-	sta mario_pixel_speed
-	rts  ; -----------------------------
-@SKIP5:
+	beq @STR_SPEED						; 0をストアする
 	sub move_amount_sum
 	cnn
+@STR_SPEED:
 	sta mario_pixel_speed
+@FIX_L_OVER:
+	lda mario_posx						; 左向き
+	sub mario_pixel_speed
+	bpl @END_L
+	lda mario_posx						; 左端を越えた時、位置を左端で固定
+	sta mario_pixel_speed				; X座標(1F前)-左端 = X座標-0 = X座標 をスピードにする
 @END_L:
 	rts  ; -----------------------------
-@R:
+
+
+; ------------------------------------------------------------------------------
+; 右の当たり判定、座標ずらし
+; ------------------------------------------------------------------------------
+
+S_CHK_COLLISION_R:
 	lda S_CHECK_COLLISION::tmp_posX
 	and #%00001111
-	bne @SKIP2
-	rts  ; -----------------------------
-@SKIP2:
+	beq @END_R
 	cmp #$05
-	bmi @SKIP3
-	rts  ; -----------------------------
-@SKIP3:									; (01H)~04Hなら
+	bpl @END_R
+	; (01H)~04Hなら
 	lda #$01
 	jsr S_CHECK_ISBLOCK_LR
-	bne @SKIP6
-	lda is_collision_up
 	beq @END_R
-	lda S_CHECK_COLLISION::save_pixel_speed
-	sta mario_pixel_speed
-	rts
-@SKIP6:
 	lda move_amount_sum
 	and #%00001111
-	bne @SKIP4
-	lda #$00
-	sta mario_pixel_speed
-	rts  ; -----------------------------
-@SKIP4:									; ジャンプしたときずれるところ
+	beq @STR_SPEED						; すでにブロックにぴったりついている場合
+	; ジャンプしたときずれる
 	lda move_amount_sum
 	and #%11110000
 	add #$10
 	sub move_amount_sum
+@STR_SPEED:
 	sta mario_pixel_speed
-	;lda #$00
-	;sta mario_x_direction
 @END_R:
 	rts  ; -----------------------------
 
@@ -191,10 +178,9 @@ S_CHECK_X_COLLISION:
 ; 戻り値なし
 ; ------------------------------------------------------------------------------
 
-S_CHECK_ISBLOCK:
+S_CHK_COLLISION_UP:
 	ldx S_CHECK_COLLISION::tmp_block_posX
 	ldy S_CHECK_COLLISION::tmp_block_posY
-	; jsr S_GET_ISCOLLISION
 	jsr S_GET_BLOCK
 	jsr S_IS_COLLISIONBLOCK
 	beq @SKIP1
@@ -211,7 +197,6 @@ S_CHECK_ISBLOCK:
 	beq @SKIP2
 
 	inx
-	; jsr S_GET_ISCOLLISION
 	jsr S_GET_BLOCK
 	jsr S_IS_COLLISIONBLOCK
 	beq @SKIP3
@@ -260,7 +245,8 @@ S_CHECK_ISBLOCK:
 
 
 ; ------------------------------------------------------------------------------
-; 座標からブロックを取得して
+; 座標からブロックを取得、当たり判定のあるブロックかチェック
+; 衝突してたらその位置を返す
 ; 引数：XレジスタにX座標、YレジスタにY座標
 ; Aレジスタ破壊
 ; 戻り値なし
@@ -271,18 +257,18 @@ S_GET_ISCOLLISION:
 	sta S_GET_ISCOLLISION::blockid
 	jsr S_IS_COLLISIONBLOCK
 	; 当たり判定のあるブロックが存在したときにマリオに対してどの位置にあるか返す
-	bne @SKIP1
+	bne @COLLISION
 	rts  ; -----------------------------
-@SKIP1:
+@COLLISION:
 	lda S_CHECK_COLLISION::tmp_posX
 	and #%00001111
 	cmp #$09
-	bmi @SKIP2
+	bmi @COLLISION_EDGE
 	cmp #$0a
-	bpl @SKIP2
+	bpl @COLLISION_EDGE
 	lda #%00000010						; 05~0bH
 	rts  ; -----------------------------
-@SKIP2:									; 00~04, 0c~0fH
+@COLLISION_EDGE:						; 00~04, 0c~0fH
 	lda #%00000101
 	rts  ; -----------------------------
 
@@ -443,14 +429,7 @@ S_FIX_LEFT:
 	lda mario_posx						; 左向き
 	sub mario_pixel_speed
 	bpl @SKIP1
-	;lda #$01
-	;sta mario_x_direction
 	lda mario_posx						; 左端を越えた時、位置を左端で固定
 	sta mario_pixel_speed				; X座標(1F前)-左端 = X座標-0 = X座標 をスピードにする
-	;jsr S_GET_MOVE_AMOUNT_X
-	;lda S_CHECK_COLLISION::move_amount_sum
-	;sta move_amount_sum
-	;lda S_CHECK_COLLISION::move_amount_disp
-	;sta move_amount_disp
 @SKIP1:
 	rts  ; -----------------------------
