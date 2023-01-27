@@ -22,6 +22,7 @@
 	block = $d6
 	move_amount_sum = $d7				; 仮（破壊しないように）
 	move_amount_disp = $d8				; 仮
+	save_pixel_speed = $d9
 .endscope
 
 S_CHECK_COLLISION:
@@ -40,11 +41,21 @@ S_CHECK_COLLISION:
 	sta mario_posy
 
 	jsr S_GET_MOVE_AMOUNT_X
+	jsr S_GET_TMP_POS
+	;inc S_CHECK_COLLISION::tmp_block_posY
+	lda S_CHECK_COLLISION::tmp_posY
+	and #%11110000
+	sta S_CHECK_COLLISION::tmp_posY
+	jsr S_CHECK_X_COLLISION
+	jsr S_FIX_LEFT
+
+	jsr S_GET_MOVE_AMOUNT_X
 	lda S_CHECK_COLLISION::move_amount_sum
 	sta move_amount_sum
 	lda S_CHECK_COLLISION::move_amount_disp
 	sta move_amount_disp
 	jsr S_FIX_LEFT
+
 	rts  ; -----------------------------
 @CHECK_GROUND:
 	jsr S_GET_TMP_POS
@@ -63,13 +74,15 @@ S_CHECK_COLLISION:
 	inx
 	jsr S_GET_ISCOLLISION
 	beq @SKIP1
-@SKIP2:
+@SKIP2:									; 下にブロックがあったときの処理
+	; lda mario_posy
+	; and #%00001111
+	; cnn
+	; sta ver_speed
+	; add mario_posy
+	; sta mario_posy
 	lda S_CHECK_COLLISION::tmp_posY
 	and #%11110000
-	; add #$10
-	; sub S_CHECK_COLLISION::tmp_posY
-	; cnn
-	; add mario_posy
 	sta mario_posy
 	ldx #$00
 	lda VER_FORCE_DECIMAL_PART_DATA, X
@@ -78,6 +91,7 @@ S_CHECK_COLLISION:
 	sta ver_force_fall
 	stx ver_speed_decimal_part
 	stx ver_speed
+	;stx ver_pos_fix_val
 	stx mario_isfly
 	jsr S_GET_MOVE_AMOUNT_X
 	lda S_CHECK_COLLISION::move_amount_sum
@@ -114,18 +128,23 @@ S_CHECK_X_COLLISION:
 	and #%00001111
 	cmp #$0c
 	bpl @SKIP1
+	lda S_CHECK_COLLISION::save_pixel_speed
+	sta mario_pixel_speed
 	rts  ; -----------------------------
 @SKIP1:									; 0CH~(0FH)なら
 	lda #$00							; mario_x_direction（引数に利用）
 	jsr S_CHECK_ISBLOCK_LR
 	beq @END_L
-	lda S_CHECK_COLLISION::tmp_posX
+	lda move_amount_sum
 	and #%11110000
-	add #$10
-	sub S_CHECK_COLLISION::tmp_posX
+	bne @SKIP5
+	lda #$00
 	sta mario_pixel_speed
-	lda #$01
-	sta mario_x_direction				; 左に移動中でぶつかったので右に移動
+	rts  ; -----------------------------
+@SKIP5:
+	sub move_amount_sum
+	cnn
+	sta mario_pixel_speed
 @END_L:
 	rts  ; -----------------------------
 @R:
@@ -140,14 +159,20 @@ S_CHECK_X_COLLISION:
 @SKIP3:									; (01H)~04Hなら
 	lda #$01
 	jsr S_CHECK_ISBLOCK_LR
+	bne @SKIP6
+	lda is_collision_up
 	beq @END_R
+	lda S_CHECK_COLLISION::save_pixel_speed
+	sta mario_pixel_speed
+	rts
+@SKIP6:
 	lda move_amount_sum
 	and #%00001111
 	bne @SKIP4
 	lda #$00
 	sta mario_pixel_speed
 	rts  ; -----------------------------
-@SKIP4:
+@SKIP4:									; ジャンプしたときずれるところ
 	lda move_amount_sum
 	and #%11110000
 	add #$10
@@ -192,7 +217,7 @@ S_CHECK_ISBLOCK:
 	beq @SKIP3
 	lda S_CHECK_COLLISION::tmp_posX
 	and #%00001111
-	cmp #$08
+	cmp #$09
 	bpl @DOWN
 	lda #%00000010
 @SKIP3:
@@ -209,8 +234,10 @@ S_CHECK_ISBLOCK:
 	cmp #%00000010
 	beq @MOVE_LEFT
 @DOWN:
-	lda #$00
-	sta ver_speed						; 上下スピード0 -> 自動で下降速度に変更
+	ldx #$00
+	stx ver_speed						; 上下スピード0 -> 自動で下降速度に変更
+	inx
+	stx is_collision_up
 	rts  ; -----------------------------
 @MOVE_RIGHT:
 	lda S_CHECK_COLLISION::tmp_posX

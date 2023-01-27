@@ -55,6 +55,7 @@ mario_posx_pixel = $2d					; 1ブロックのどのピクセルにいるか（po
 
 ver_pos_origin = $2e					; ジャンプ開始時の位置
 ver_speed = $30							; 速度
+is_collision_up = $49
 ver_pos_fix_val = $4a					; 補正値
 ver_force_decimal_part = $31			; 現在の加速度
 ver_force_fall = $32					; 降下時の加速度
@@ -88,6 +89,7 @@ sound_ch1_frame_cnt = $47
 cannot_control = $48		; ポーズ音が鳴っている時動けないようにする、死んだ時などにも使える
 ; pause_timer						; ポーズフラグが変更されたあと操作を受け付けない時間
 ; stop_game_timer					; 土管に入る、パワーアップなど動作を止める時間
+
 
 
 ; カウンター（動作チェック用）
