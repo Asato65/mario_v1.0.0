@@ -26,11 +26,68 @@
 .endscope
 
 S_CHECK_COLLISION:
+	;! TODO: ここで上／下の衝突があるかチェック
+	jsr S_GET_MOVE_AMOUNT_X
+	jsr S_GET_TMP_POS
+	lda mario_isjump
+	beq @CHK_GROUND2
+
+	ldx S_CHECK_COLLISION::tmp_block_posX
+	ldy S_CHECK_COLLISION::tmp_block_posY
+	jsr S_GET_BLOCK
+	jsr S_IS_COLLISIONBLOCK
+	beq @CHK_UP_R
+	lda S_CHECK_COLLISION::tmp_posX
+	and #%00001111
+	cmp #$08
+	bmi @COLLISION_Y
+@CHK_UP_R:
+	lda S_CHECK_COLLISION::tmp_posX
+	and #%00001111
+	beq @NOCOLLISION_Y
+
+	inx
+	jsr S_GET_BLOCK
+	jsr S_IS_COLLISIONBLOCK
+	beq @NOCOLLISION_Y
+	lda S_CHECK_COLLISION::tmp_posX
+	and #%00001111
+	cmp #$09
+	bpl @COLLISION_Y
+	bmi @NOCOLLISION_Y
+@CHK_GROUND2:
+	jsr S_GET_TMP_POS
+	ldx S_CHECK_COLLISION::tmp_block_posX
+	ldy S_CHECK_COLLISION::tmp_block_posY
+	iny
+	cpy #$0f
+	bpl @NOCOLLISION_Y
+	jsr S_GET_ISCOLLISION
+	bne @COLLISION_Y
+	lda S_CHECK_COLLISION::tmp_posX
+	and #%00001111
+	beq @NOCOLLISION_Y
+	inx
+	jsr S_GET_ISCOLLISION
+	beq @NOCOLLISION_Y
+	bne @COLLISION_Y
+@COLLISION_Y:
+	lda #$00
+	sta order_chk_collision
+	beq @CHECK_ISJUMP					; 強制ジャンプ
+@NOCOLLISION_Y:
+	lda #$01
+	sta order_chk_collision
+	;!----------------------------------
+
+@CHECK_COLLISION_X:
 	jsr S_GET_MOVE_AMOUNT_X
 	jsr S_GET_TMP_POS
 	jsr S_CHECK_X_COLLISION
-	jsr S_FIX_LEFT
-; CHECK_ISJUMP:
+	lda order_chk_collision
+	bne @CHECK_ISJUMP
+	rts  ; -----------------------------
+@CHECK_ISJUMP:
 	jsr S_GET_TMP_POS
 	lda mario_isjump
 	beq @CHECK_GROUND
@@ -40,13 +97,8 @@ S_CHECK_COLLISION:
 	add mario_posy
 	sta mario_posy
 
-	jsr S_GET_MOVE_AMOUNT_X
-	lda S_CHECK_COLLISION::move_amount_sum
-	sta move_amount_sum
-	lda S_CHECK_COLLISION::move_amount_disp
-	sta move_amount_disp
-	jsr S_FIX_LEFT
-
+	lda order_chk_collision
+	beq @CHECK_COLLISION_X
 	rts  ; -----------------------------
 @CHECK_GROUND:
 	jsr S_GET_TMP_POS
@@ -77,25 +129,19 @@ S_CHECK_COLLISION:
 	stx ver_speed_decimal_part
 	stx ver_speed
 	stx mario_isfly
-	jsr S_GET_MOVE_AMOUNT_X
-	lda S_CHECK_COLLISION::move_amount_sum
-	sta move_amount_sum
-	lda S_CHECK_COLLISION::move_amount_disp
-	sta move_amount_disp
-	jsr S_FIX_LEFT
-	rts  ; -----------------------------
+	lda order_chk_collision
+	bne @END
+	jmp @CHECK_COLLISION_X
 @SKIP1:
 	lda ver_speed
 	add ver_pos_fix_val
 	add mario_posy
 	sta mario_posy
 
-	jsr S_GET_MOVE_AMOUNT_X
-	lda S_CHECK_COLLISION::move_amount_sum
-	sta move_amount_sum
-	lda S_CHECK_COLLISION::move_amount_disp
-	sta move_amount_disp
-	jsr S_FIX_LEFT
+	lda order_chk_collision
+	bne @END
+	jmp @CHECK_COLLISION_X
+@END:
 	rts  ; -----------------------------
 
 
@@ -172,7 +218,7 @@ S_CHK_COLLISION_R:
 
 
 ; ------------------------------------------------------------------------------
-; ジャンプ時の左右ずらしや頭ぶつけるところまで
+; ジャンプ時の左右ずらし、ブロックの位置
 ; 引数なし
 ; A、X、Yレジスタ破壊
 ; 戻り値なし
@@ -423,13 +469,10 @@ S_GET_MOVE_AMOUNT_X:
 	rts  ; -----------------------------
 
 
-S_FIX_LEFT:
-	lda mario_x_direction
-	bne @SKIP1
-	lda mario_posx						; 左向き
-	sub mario_pixel_speed
-	bpl @SKIP1
-	lda mario_posx						; 左端を越えた時、位置を左端で固定
-	sta mario_pixel_speed				; X座標(1F前)-左端 = X座標-0 = X座標 をスピードにする
-@SKIP1:
+S_STORE_AMOUNT_X:
+	jsr S_GET_MOVE_AMOUNT_X
+	lda S_CHECK_COLLISION::move_amount_sum
+	sta move_amount_sum
+	lda S_CHECK_COLLISION::move_amount_disp
+	sta move_amount_disp
 	rts  ; -----------------------------

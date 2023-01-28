@@ -33,6 +33,8 @@ S_MOVE_PLAYER:
 
 		jsr S_CHECK_COLLISION
 
+	jsr S_STORE_AMOUNT_X
+
 		jsr S_STORE_MARIO
 
 		rts  ; -------------------------
