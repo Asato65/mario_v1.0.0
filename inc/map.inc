@@ -18,10 +18,9 @@ MAP1_1_POS:
 	.byte $ea, $eb, $ec
 	.byte $ef
 	; 2
-	.byte $3d, $3e
-	.byte $8b
-	.byte $9b
-	.byte $fa
+	.byte $4a, $4b, $4c
+	.byte $8d, $8e
+	.byte $c9
 	.byte $ef
 	; 3
 	.byte $13
@@ -37,23 +36,22 @@ MAP1_1_POS:
 	.byte $ff
 
 MAP1_1_OBJ:
-	.byte $02
-	.byte $02, $02, $02
-	.byte $02
-	.byte $02, $02
-	.byte $02
-	.byte $02
-	.byte $02, $02
-	.byte $02
-	.byte $02
-	.byte $02, $02
-	.byte $02, $02, $02
+	.byte BLOCK
+	.byte BLOCK, BLOCK, BLOCK
+	.byte BLOCK
+	.byte BLOCK, BLOCK
+	.byte BLOCK
+	.byte BLOCK
+	.byte BLOCK, BLOCK
+	.byte BLOCK
+	.byte BLOCK
+	.byte BLOCK, BLOCK
+	.byte BLOCK, BLOCK, BLOCK
 	.byte $ef
 	;2
+	.byte BLOCK, BLOCK, BLOCK
 	.byte SKY, SKY
 	.byte QBLOCK
-	.byte BLOCK
-	.byte BLOCK
 	.byte $ef
 	;3
 	.byte BLOCK

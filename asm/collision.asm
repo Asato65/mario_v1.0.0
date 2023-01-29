@@ -26,14 +26,23 @@
 .endscope
 
 S_CHECK_COLLISION:
-	;! TODO: ここで上／下の衝突があるかチェック
+	;! ここで上／下の衝突があるかチェック
 	jsr S_GET_MOVE_AMOUNT_X
 	jsr S_GET_TMP_POS
+	lda mario_posx
+	and #%11110000
+	sta S_CHECK_COLLISION::tmp_posX
+	lsr
+	lsr
+	lsr
+	lsr
+	sta S_CHECK_COLLISION::tmp_block_posX
+	tax
+	ldy S_CHECK_COLLISION::tmp_block_posY
 	lda mario_isjump
 	beq @CHK_GROUND2
 
-	ldx S_CHECK_COLLISION::tmp_block_posX
-	ldy S_CHECK_COLLISION::tmp_block_posY
+	; ldx S_CHECK_COLLISION::tmp_block_posX
 	jsr S_GET_BLOCK
 	jsr S_IS_COLLISIONBLOCK
 	beq @CHK_UP_R
@@ -55,10 +64,8 @@ S_CHECK_COLLISION:
 	cmp #$09
 	bpl @COLLISION_Y
 	bmi @NOCOLLISION_Y
+	; ----------------------------------
 @CHK_GROUND2:
-	jsr S_GET_TMP_POS
-	ldx S_CHECK_COLLISION::tmp_block_posX
-	ldy S_CHECK_COLLISION::tmp_block_posY
 	iny
 	cpy #$0f
 	bpl @NOCOLLISION_Y
@@ -80,14 +87,23 @@ S_CHECK_COLLISION:
 	sta order_chk_collision
 	;!----------------------------------
 
-@CHECK_COLLISION_X:
+@CHECK_COLLISION_X:						; X方向チェック
 	jsr S_GET_MOVE_AMOUNT_X
 	jsr S_GET_TMP_POS
-	jsr S_CHECK_X_COLLISION
+
+	lda mario_x_direction
+	bne @R
+	jsr S_CHK_COLLISION_L
+	jmp @END_CHECK_COLLISION_X
+@R:
+	jsr S_CHK_COLLISION_R
+
+@END_CHECK_COLLISION_X:
 	lda order_chk_collision
 	bne @CHECK_ISJUMP
 	rts  ; -----------------------------
 @CHECK_ISJUMP:
+	jsr S_GET_MOVE_AMOUNT_X
 	jsr S_GET_TMP_POS
 	lda mario_isjump
 	beq @CHECK_GROUND
@@ -146,20 +162,6 @@ S_CHECK_COLLISION:
 
 
 ; ------------------------------------------------------------------------------
-; X方向の当たり判定
-; ブロックの存在チェック、座標ずらしまで
-; ------------------------------------------------------------------------------
-
-S_CHECK_X_COLLISION:
-	lda mario_x_direction
-	bne @R
-	jsr S_CHK_COLLISION_L
-@R:
-	jsr S_CHK_COLLISION_R
-	rts  ; -----------------------------
-
-
-; ------------------------------------------------------------------------------
 ; 左の当たり判定、座標ずらし
 ; ------------------------------------------------------------------------------
 
@@ -180,14 +182,19 @@ S_CHK_COLLISION_L:
 @STR_SPEED:
 	sta mario_pixel_speed
 @FIX_L_OVER:
-	lda mario_posx						; 左向き
-	sub mario_pixel_speed
-	bpl @END_L
-	lda mario_posx						; 左端を越えた時、位置を左端で固定
-	sta mario_pixel_speed				; X座標(1F前)-左端 = X座標-0 = X座標 をスピードにする
+	jsr S_FIX_OVER_L
 @END_L:
 	rts  ; -----------------------------
 
+
+S_FIX_OVER_L:
+	lda mario_posx						; 左向き
+	sub mario_pixel_speed
+	bpl @END
+	lda mario_posx						; 左端を越えた時、位置を左端で固定
+	sta mario_pixel_speed				; X座標(1F前)-左端 = X座標-0 = X座標 をスピードにする
+@END:
+	rts  ; -----------------------------
 
 ; ------------------------------------------------------------------------------
 ; 右の当たり判定、座標ずらし
@@ -287,6 +294,7 @@ S_CHK_COLLISION_UP:
 	sta mario_pixel_speed
 	lda #$00
 	sta mario_x_direction
+	jsr S_FIX_OVER_L
 	rts  ; -----------------------------
 
 
