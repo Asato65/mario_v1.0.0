@@ -28,6 +28,10 @@
 S_CHECK_COLLISION:
 	;! ここで上／下の衝突があるかチェック
 	jsr S_GET_MOVE_AMOUNT_X
+	lda mario_x_direction
+	bne @SKIP_FIX_OVER_L
+	jsr S_FIX_OVER_L
+@SKIP_FIX_OVER_L:
 	jsr S_GET_TMP_POS
 	lda mario_posx
 	and #%11110000
@@ -117,7 +121,6 @@ S_CHECK_COLLISION:
 	beq @CHECK_COLLISION_X
 	rts  ; -----------------------------
 @CHECK_GROUND:
-	jsr S_GET_TMP_POS
 	ldx S_CHECK_COLLISION::tmp_block_posX
 	ldy S_CHECK_COLLISION::tmp_block_posY
 	iny
@@ -390,6 +393,11 @@ S_GET_TMP_POS:
 	cnn
 @SKIP1:
 	add move_amount_sum
+	;bpl @SKIP2
+	;cmp #$f0
+	;bmi @SKIP2
+	;lda #$00
+@SKIP2:
 	tax
 	sta S_CHECK_COLLISION::tmp_posX
 	lsr
