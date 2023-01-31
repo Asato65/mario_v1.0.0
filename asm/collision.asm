@@ -107,6 +107,8 @@ S_CHECK_COLLISION:
 	bne @CHECK_ISJUMP
 	rts  ; -----------------------------
 @CHECK_ISJUMP:
+	;lda mario_x_direction
+	;jsr S_FIX_OVER_L
 	jsr S_GET_MOVE_AMOUNT_X
 	jsr S_GET_TMP_POS
 	lda mario_isjump
@@ -184,6 +186,10 @@ S_CHK_COLLISION_L:
 	cnn
 @STR_SPEED:
 	sta mario_pixel_speed
+	lda brake
+	bne @FIX_L_OVER
+	lda #$0e
+	sta mario_speed_L					; ブレーキ中でなく、ブロックに衝突したときピクセル速度0に
 @FIX_L_OVER:
 	jsr S_FIX_OVER_L
 @END_L:
@@ -223,6 +229,10 @@ S_CHK_COLLISION_R:
 	sub move_amount_sum
 @STR_SPEED:
 	sta mario_pixel_speed
+	lda brake
+	bne @END_R
+	lda #$0e
+	sta mario_speed_R					; ブレーキ中でなく、ブロックに衝突したときピクセル速度0に
 @END_R:
 	rts  ; -----------------------------
 
@@ -453,20 +463,27 @@ S_CHECK_ISBLOCK_LR:
 ; ------------------------------------------------------------------------------
 
 S_GET_MOVE_AMOUNT_X:
+	lda mario_x_direction
+	bne @SKIP1
+	jsr S_FIX_OVER_L
+@SKIP1:
 	lda move_amount_sum
 	ldx mario_x_direction				; 分岐用
 	bne @R
 	sub mario_pixel_speed
 	sta S_CHECK_COLLISION::move_amount_sum
 	bcs @SKIP_INC_DISP
-	bcc @INC_DISP
+	ldx move_amount_disp
+	dex
+	stx S_CHECK_COLLISION::move_amount_disp
+	jmp @SKIP_INC_DISP
 @R:
 	add mario_pixel_speed
 	sta S_CHECK_COLLISION::move_amount_sum
 	bcc @SKIP_INC_DISP
 @INC_DISP:
-	lda move_amount_sum					; 左端にいったときのインクリメントを防ぐ
-	bpl @SKIP_INC_DISP
+	;lda move_amount_sum					; 左端にいったときのインクリメントを防ぐ
+	;bpl @SKIP_INC_DISP
 	ldx move_amount_disp
 	inx
 	stx S_CHECK_COLLISION::move_amount_disp
