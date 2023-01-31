@@ -69,7 +69,7 @@
 		bne @INIT_PAL
 
 		jsr S_INIT_SOUND
-		
+
 		; 値の設定
 		lda #$28						; マリオのX座標（これはステージ読み込みを実装したとき移動させる）
 		sta mario_posx
@@ -147,8 +147,6 @@
 		jsr S_TRANSFAR_PLT_TOBUFFER
 		jsr S_STORE_MAPOBJ_VRAM
 		jsr S_STORE_PLT_TO_BUFF
-		lda #$03
-		sta PPU_DMA
 		dec START::counter
 		bne @STORE_MAP_INIT
 
@@ -170,6 +168,10 @@
 		sta PPU_SET1
 		lda #%00011110	; すべて表示
 		sta PPU_SET2
+
+; @WAIT_END_VBLANK:						; VBlank終了待ち
+; 		bit PPU_STATUS
+; 		bvs @WAIT_END_VBLANK
 
 		jmp MAINLOOP
 .endproc

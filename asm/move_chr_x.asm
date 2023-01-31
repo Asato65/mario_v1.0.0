@@ -53,6 +53,18 @@ S_GET_SPEED_L_OR_R:
 		cmp #MARIO_WALK_MAXSPEED
 		bpl @WALK_SPEED_DOWN
 		add #MARIO_WALK_INCSPEED
+		cmp #$16
+		bpl @SKIP_SLOW_SPEED
+		pha
+		lda frame_counter
+		and #%00000001
+		bne @PLA_SPEED
+		beq @PLA_SPEED
+		;pla
+		rts  ; -------------------------
+@PLA_SPEED:
+		pla
+@SKIP_SLOW_SPEED:
 		cmp #MARIO_WALK_MAXSPEED
 		bmi @STORE_SPEED_UP_WALK
 		lda #MARIO_WALK_MAXSPEED		; 歩き速度で維持
