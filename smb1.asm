@@ -106,9 +106,6 @@
 		sta PPU_ACCESS
 
 
-		; キャラクター名表示
-		
-
 		; "TIME" キャラクター表示
 		ldx #$00
 		lda STATUS_STR_TIME, x

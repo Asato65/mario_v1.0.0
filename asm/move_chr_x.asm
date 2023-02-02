@@ -37,6 +37,17 @@ S_GET_SPEED_L_OR_R:
 		stx mario_speed_tmp
 		rts  ; -------------------------
 @SKIP3:									; 右ボタン押されていて速度あり
+		lda mario_isfly
+		beq @ADD_SPEED
+		lda check_con_btn				; 下位がLRの順
+		and #%00000001
+		cmp mario_x_direction
+		beq @ADD_SPEED					; 方向が同じときスキップ
+		lda frame_counter
+		and #%00000011
+		beq @ADD_SPEED
+		rts  ; -------------------------
+@ADD_SPEED:
 		lda con_player1
 		and #CON_B
 		beq @WALK
