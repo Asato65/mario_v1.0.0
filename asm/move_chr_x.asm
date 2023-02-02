@@ -57,10 +57,9 @@ S_GET_SPEED_L_OR_R:
 		bpl @SKIP_SLOW_SPEED
 		pha
 		lda frame_counter
-		and #%00000001
-		bne @PLA_SPEED
+		and #%00000000					; 速度が小さいときの調整
 		beq @PLA_SPEED
-		;pla
+		pla
 		rts  ; -------------------------
 @PLA_SPEED:
 		pla

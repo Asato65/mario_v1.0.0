@@ -169,10 +169,6 @@
 		lda #%00011110	; すべて表示
 		sta PPU_SET2
 
-; @WAIT_END_VBLANK:						; VBlank終了待ち
-; 		bit PPU_STATUS
-; 		bvs @WAIT_END_VBLANK
-
 		jmp MAINLOOP
 .endproc
 
