@@ -143,13 +143,14 @@ S_CHECK_COLLISION:
 	and #%11110000
 	sta mario_posy
 	ldx #$00
+	stx ver_speed_decimal_part
+	stx ver_pos_decimal_part
+	stx ver_speed
+	stx mario_isfly
 	lda VER_FORCE_DECIMAL_PART_DATA, X
 	sta ver_force_decimal_part
 	lda VER_FALL_FORCE_DATA
 	sta ver_force_fall
-	stx ver_speed_decimal_part
-	stx ver_speed
-	stx mario_isfly
 	lda order_chk_collision
 	bne @END
 	jmp @CHECK_COLLISION_X

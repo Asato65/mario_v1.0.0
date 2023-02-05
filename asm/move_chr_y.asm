@@ -112,12 +112,13 @@ MOVE_PROCESS:
 ; ------------------------------------------------------------------------------
 
 PHYSICS:
+		ldx #$00
+		stx ver_pos_fix_val
 		lda ver_pos_decimal_part
 		add ver_force_decimal_part
 		sta ver_pos_decimal_part
 		bcc @SKIP_OVERFLOW
 		; オーバーフローしてたら
-		ldx #$00
 		stx ver_pos_decimal_part
 		inx
 		stx ver_pos_fix_val				; 補正値があったらここで修正
