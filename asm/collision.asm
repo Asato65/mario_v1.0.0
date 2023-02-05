@@ -174,6 +174,7 @@ S_CHECK_COLLISION:
 S_CHK_COLLISION_L:
 	lda S_CHECK_COLLISION::tmp_posX
 	and #%00001111
+	beq @END_L
 	cmp #$0c
 	bmi @END_L
 	; 0CH~(0FH)なら
