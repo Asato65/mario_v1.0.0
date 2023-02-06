@@ -27,13 +27,13 @@
 
 S_CHECK_COLLISION:
 	;! ここで上／下の衝突があるかチェック
-	jsr S_GET_MOVE_AMOUNT_X
-	lda mario_x_direction
-	bne @SKIP_FIX_OVER_L
-	jsr S_FIX_OVER_L
-@SKIP_FIX_OVER_L:
+; 	jsr S_GET_MOVE_AMOUNT_X
+; 	lda mario_x_direction
+; 	bne @SKIP_FIX_OVER_L
+; 	jsr S_FIX_OVER_L
+; @SKIP_FIX_OVER_L:
 	jsr S_GET_TMP_POS
-	lda mario_posx
+	lda move_amount_sum
 	and #%11110000
 	sta S_CHECK_COLLISION::tmp_posX
 	lsr
@@ -92,7 +92,7 @@ S_CHECK_COLLISION:
 	;!----------------------------------
 
 @CHECK_COLLISION_X:						; X方向チェック
-	jsr S_GET_MOVE_AMOUNT_X
+	;jsr S_GET_MOVE_AMOUNT_X
 	jsr S_GET_TMP_POS
 
 	lda mario_x_direction
@@ -109,7 +109,7 @@ S_CHECK_COLLISION:
 @CHECK_ISJUMP:
 	;lda mario_x_direction
 	;jsr S_FIX_OVER_L
-	jsr S_GET_MOVE_AMOUNT_X
+	;jsr S_GET_MOVE_AMOUNT_X
 	jsr S_GET_TMP_POS
 	lda mario_isjump
 	beq @CHECK_GROUND
@@ -180,7 +180,7 @@ S_CHK_COLLISION_L:
 	; 0CH~(0FH)なら
 	lda #$00							; mario_x_direction（引数に利用）
 	jsr S_CHECK_ISBLOCK_LR
-	beq @FIX_L_OVER
+	beq @END_L
 	lda move_amount_sum
 	and #%11110000
 	beq @STR_SPEED						; 0をストアする
@@ -189,23 +189,12 @@ S_CHK_COLLISION_L:
 @STR_SPEED:
 	sta mario_pixel_speed
 	lda brake
-	bne @FIX_L_OVER
+	bne @END_L
 	lda #$0e
 	sta mario_speed_L					; ブレーキ中でなく、ブロックに衝突したときピクセル速度0に
-@FIX_L_OVER:
-	jsr S_FIX_OVER_L
 @END_L:
 	rts  ; -----------------------------
 
-
-S_FIX_OVER_L:
-	lda mario_posx						; 左向き
-	sub mario_pixel_speed
-	bpl @END
-	lda mario_posx						; 左端を越えた時、位置を左端で固定
-	sta mario_pixel_speed				; X座標(1F前)-左端 = X座標-0 = X座標 をスピードにする
-@END:
-	rts  ; -----------------------------
 
 ; ------------------------------------------------------------------------------
 ; 右の当たり判定、座標ずらし
@@ -309,7 +298,7 @@ S_CHK_COLLISION_UP:
 	sta mario_pixel_speed
 	lda #$00
 	sta mario_x_direction
-	jsr S_FIX_OVER_L
+	; jsr S_FIX_OVER_L
 	rts  ; -----------------------------
 
 
@@ -399,33 +388,56 @@ S_IS_COLLISIONBLOCK:
 ; ------------------------------------------------------------------------------
 
 S_GET_TMP_POS:
+	lda mario_x_direction
+	bne @SKIP_FIX_OVER_L
+	lda mario_posx
+	cmp mario_pixel_speed
+	bpl @SKIP_FIX_OVER_L
+	sta mario_pixel_speed				; 左端修正
+@SKIP_FIX_OVER_L:
+	lda move_amount_sum
+	ldx mario_x_direction				; 分岐用
+	bne @R
+	sub mario_pixel_speed
+	sta S_CHECK_COLLISION::move_amount_sum
+	bcs @SKIP_INC_DISP
+	ldx move_amount_disp
+	dex
+	stx S_CHECK_COLLISION::move_amount_disp
+	jmp @SKIP_INC_DISP
+@R:
+	add mario_pixel_speed
+	sta S_CHECK_COLLISION::move_amount_sum
+	bcc @SKIP_INC_DISP
+@INC_DISP:
+	ldx move_amount_disp
+	inx
+	stx S_CHECK_COLLISION::move_amount_disp
+@SKIP_INC_DISP:
+	pha
+	and #%00001111
+	sta mario_posx_pixel
+	pla
+	rshift4
+	sta mario_posx_block
+
 	lda mario_pixel_speed
 	ldx mario_x_direction
-	bne @SKIP1
+	bne @SKIP_CNN
 	cnn
-@SKIP1:
+@SKIP_CNN:
 	add move_amount_sum
-	;bpl @SKIP2
-	;cmp #$f0
-	;bmi @SKIP2
-	;lda #$00
-@SKIP2:
 	tax
 	sta S_CHECK_COLLISION::tmp_posX
-	lsr
-	lsr
-	lsr
-	lsr
+	rshift4
 	sta S_CHECK_COLLISION::tmp_block_posX
 
 	lda mario_posy
 	add ver_speed
+	; add ver_pos_fix_val
 	tay
 	sta S_CHECK_COLLISION::tmp_posY
-	lsr
-	lsr
-	lsr
-	lsr
+	rshift4
 	sta S_CHECK_COLLISION::tmp_block_posY
 
 	rts  ; -----------------------------
@@ -464,48 +476,10 @@ S_CHECK_ISBLOCK_LR:
 ; 戻り値無し
 ; ------------------------------------------------------------------------------
 
-S_GET_MOVE_AMOUNT_X:
-	lda mario_x_direction
-	bne @SKIP1
-	jsr S_FIX_OVER_L
-@SKIP1:
-	lda move_amount_sum
-	ldx mario_x_direction				; 分岐用
-	bne @R
-	sub mario_pixel_speed
-	sta S_CHECK_COLLISION::move_amount_sum
-	bcs @SKIP_INC_DISP
-	ldx move_amount_disp
-	dex
-	stx S_CHECK_COLLISION::move_amount_disp
-	jmp @SKIP_INC_DISP
-@R:
-	add mario_pixel_speed
-	sta S_CHECK_COLLISION::move_amount_sum
-	bcc @SKIP_INC_DISP
-@INC_DISP:
-	;lda move_amount_sum					; 左端にいったときのインクリメントを防ぐ
-	;bpl @SKIP_INC_DISP
-	ldx move_amount_disp
-	inx
-	stx S_CHECK_COLLISION::move_amount_disp
-@SKIP_INC_DISP:
-	pha
-	and #%00001111
-	sta mario_posx_pixel
-	pla
-	and #%11110000
-	lsr
-	lsr
-	lsr
-	lsr
-	sta mario_posx_block
-
-	rts  ; -----------------------------
-
 
 S_STORE_AMOUNT_X:
-	jsr S_GET_MOVE_AMOUNT_X
+	;jsr S_GET_MOVE_AMOUNT_X
+	jsr S_GET_TMP_POS
 	lda S_CHECK_COLLISION::move_amount_sum
 	sta move_amount_sum
 	lda S_CHECK_COLLISION::move_amount_disp
