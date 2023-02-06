@@ -14,10 +14,7 @@ S_DRAW_ADDMAP:
 		lda MAP1_1_POS, x
 		and #%11110000
 		clc
-		lsr
-		lsr
-		lsr
-		lsr
+		rsft4
 		sta obj_posx
 		lda MAP1_1_POS, x
 		and #%00001111
@@ -73,10 +70,7 @@ S_DRAW_ADDMAP:
 		; sta addr_upper
 
 		lda obj_posy
-		asl
-		asl
-		asl
-		asl
+		lsft4
 		ora obj_posx
 		sta addr_lower
 		lda ram_posx_lpcnt
@@ -178,10 +172,7 @@ S_MAPRAM_INIT:
 		lda ram_posx_cnt	; これはインクルード済み
 		sta ram_posx
 		txa
-		asl
-		asl
-		asl
-		asl
+		lsft4
 		ora ram_posx
 		sta ram_posx
 		lda ram_posx_lpcnt
@@ -321,10 +312,7 @@ S_CALC_PALETTE:
 		ldy #$00	; 固定，破壊OK
 		lda (addr_lower), y
 		and #%00110000
-		lsr
-		lsr
-		lsr
-		lsr
+		rsft4
 		pha	; 一時保存したAレジスタをスタックにきちんと保存（ここにパレットデータ）
 		; シフトしてYレジスタにシフト量を入れる
 		; xレジスタのbit0が0, N1のbit0が0（N1→X方向，Xレジスタ→Y方向）

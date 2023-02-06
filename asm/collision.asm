@@ -19,34 +19,23 @@
 	tmp_block_posY = $d3
 	tmp1 = $d4
 	tmp2 = $d5
-	block = $d6
 	move_amount_sum = $d7				; 仮（破壊しないように）
 	move_amount_disp = $d8				; 仮
-	save_pixel_speed = $d9
 .endscope
 
 S_CHECK_COLLISION:
-	;! ここで上／下の衝突があるかチェック
-; 	jsr S_GET_MOVE_AMOUNT_X
-; 	lda mario_x_direction
-; 	bne @SKIP_FIX_OVER_L
-; 	jsr S_FIX_OVER_L
-; @SKIP_FIX_OVER_L:
+	; ここで上／下の衝突があるかチェック
 	jsr S_GET_TMP_POS
 	lda move_amount_sum
 	and #%11110000
 	sta S_CHECK_COLLISION::tmp_posX
-	lsr
-	lsr
-	lsr
-	lsr
+	rsft4
 	sta S_CHECK_COLLISION::tmp_block_posX
 	tax
 	ldy S_CHECK_COLLISION::tmp_block_posY
 	lda mario_isjump
 	beq @CHK_GROUND2
 
-	; ldx S_CHECK_COLLISION::tmp_block_posX
 	jsr S_GET_BLOCK
 	jsr S_IS_COLLISIONBLOCK
 	beq @CHK_UP_R
@@ -89,10 +78,9 @@ S_CHECK_COLLISION:
 @NOCOLLISION_Y:
 	lda #$01
 	sta order_chk_collision
-	;!----------------------------------
+	; ------ 当たり判定チェック順序 ------
 
 @CHECK_COLLISION_X:						; X方向チェック
-	;jsr S_GET_MOVE_AMOUNT_X
 	jsr S_GET_TMP_POS
 
 	lda mario_x_direction
@@ -107,9 +95,6 @@ S_CHECK_COLLISION:
 	bne @CHECK_ISJUMP
 	rts  ; -----------------------------
 @CHECK_ISJUMP:
-	;lda mario_x_direction
-	;jsr S_FIX_OVER_L
-	;jsr S_GET_MOVE_AMOUNT_X
 	jsr S_GET_TMP_POS
 	lda mario_isjump
 	beq @CHECK_GROUND
@@ -348,10 +333,7 @@ S_GET_BLOCK:
 	add #$04
 	sta addr_upper
 	tya
-	asl
-	asl
-	asl
-	asl
+	lsft4
 	sta tmp1
 	txa
 	and #%00001111
@@ -418,7 +400,7 @@ S_GET_TMP_POS:
 	and #%00001111
 	sta mario_posx_pixel
 	pla
-	rshift4
+	rsft4
 	sta mario_posx_block
 
 	lda mario_pixel_speed
@@ -429,15 +411,15 @@ S_GET_TMP_POS:
 	add move_amount_sum
 	tax
 	sta S_CHECK_COLLISION::tmp_posX
-	rshift4
+	rsft4
 	sta S_CHECK_COLLISION::tmp_block_posX
 
 	lda mario_posy
 	add ver_speed
-	; add ver_pos_fix_val
+	add ver_pos_fix_val
 	tay
 	sta S_CHECK_COLLISION::tmp_posY
-	rshift4
+	rsft4
 	sta S_CHECK_COLLISION::tmp_block_posY
 
 	rts  ; -----------------------------
@@ -478,7 +460,6 @@ S_CHECK_ISBLOCK_LR:
 
 
 S_STORE_AMOUNT_X:
-	;jsr S_GET_MOVE_AMOUNT_X
 	jsr S_GET_TMP_POS
 	lda S_CHECK_COLLISION::move_amount_sum
 	sta move_amount_sum

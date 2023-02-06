@@ -205,9 +205,6 @@ S_STORE_PIXEL_SPEED:
 		sta mario_speed_remainder
 		lda mario_subpixel_speed
 		and #%11110000
-		lsr
-		lsr
-		lsr
-		lsr
+		rsft4
 		sta mario_pixel_speed
 		rts  ; -------------------------

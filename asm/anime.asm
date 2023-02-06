@@ -150,7 +150,6 @@ S_CHANGE_WALK_ANIME:
 @SKIP1:
 		lda #$04
 		sub mario_pixel_speed
-		;asl
 		sta mario_anime_timer
 		sta mario_anime_speed
 
