@@ -34,13 +34,20 @@
 .segment "STARTUP"
 .proc RESET
 		; IRQ初期化
-		sei			; IRQ禁止
-		ldx #$ff	; スタックポインタ
-		txs			; Sレジスタへ
+		sei								; IRQ禁止
 
 		; PPU初期化
-		lda #$00
+		lda #%00001000
 		sta PPU_SET1
+
+		ldx #$ff
+		txs
+
+@WAIT_END_VBLANK:
+		lda PPU_STATUS
+		bpl @WAIT_END_VBLANK
+
+		lda #$00
 		sta PPU_SET2
 
 		; RAM初期化
@@ -60,13 +67,8 @@
 		sta PPU_ADDRESS
 		lda #$00
 		sta PPU_ADDRESS
-		ldx #$00
-@INIT_PAL:
-		lda INITIAL_PLT, x
+		lda #$0f
 		sta PPU_ACCESS
-		inx
-		cpx #$20
-		bne @INIT_PAL
 
 		jsr S_INIT_SOUND
 
@@ -86,16 +88,6 @@
 		sta mario_face_direction
 
 		; ステータスの表示
-		; パレットデータストア
-		lda #$23
-		sta PPU_ADDRESS
-		lda #$c0
-		sta PPU_ADDRESS
-		ldx #$40
-@PLT_STORE_LOOP:
-		sta PPU_ACCESS
-		dex
-		bne @PLT_STORE_LOOP
 
 		; 不透明キャラクター配置（ゼロスプライト用）
 		lda #$20
@@ -104,7 +96,6 @@
 		sta PPU_ADDRESS
 		lda #$ff
 		sta PPU_ACCESS
-
 
 		; "TIME" キャラクター表示
 		ldx #$00
@@ -130,7 +121,6 @@
 		lda #$01
 		sta timer_update_flag
 
-
 .scope START
 	counter = $d2
 .endscope
@@ -142,7 +132,7 @@
 		jsr S_DRAW_ADDMAP				; マップを一列更新
 		jsr S_TRANSFAR_OBJDATA_TOBUFFER
 		jsr S_TRANSFAR_PLT_TOBUFFER
-		jsr S_STORE_MAPOBJ_VRAM
+		jsr S_STORE_MAPOBJ_VRAM			; NMIで行っている作業
 		jsr S_STORE_PLT_TO_BUFF
 		dec START::counter
 		bne @STORE_MAP_INIT
@@ -160,11 +150,28 @@
 		lda #$03	; SPR転送
 		sta PPU_DMA
 
+		; パレットテーブルの転送
+		lda #$3f
+		sta PPU_ADDRESS
+		lda #$00
+		sta PPU_ADDRESS
+		ldx #$00
+@STORE_PAL:
+		lda INITIAL_PLT, x
+		sta PPU_ACCESS
+		inx
+		cpx #$20
+		bne @STORE_PAL
+
 		; スクリーンON
 		lda #%10001000	; NMI-ON, SPR=$1000
 		sta PPU_SET1
 		lda #%00011110	; すべて表示
 		sta PPU_SET2
+
+		lda #$00
+		sta PPU_SCROLL
+		sta PPU_SCROLL
 
 		jmp MAINLOOP
 .endproc
