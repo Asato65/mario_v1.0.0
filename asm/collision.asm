@@ -1,5 +1,5 @@
 .scope S_GET_ISCOLLISION
-	blockid = $d6
+	blockid = $d0
 .endscope
 
 ; ------------------------------------------------------------------------------
@@ -9,17 +9,15 @@
 ; -----------------------------------------------------------------------------
 
 .scope S_CHECK_COLLISION
-	tmp_posX = $d0
 	tmp_posY = $d1
-	tmp_block_posX = $d2
-	tmp_block_posY = $d3
-	tmp1 = $d4
-	tmp2 = $d5
-	move_amount_sum = $d7				; 仮（破壊しないように）
-	move_amount_disp = $d8				; 仮
-	width = $d9
-	height = $da
-	move_amount_block = $db
+	tmp_block_posY = $d2
+	tmp1 = $d3
+	move_amount_sum = $d4				; 仮（破壊しないように）
+	move_amount_disp = $d5				; 仮
+	width = $d6
+	height = $d7
+	move_amount_block = $d8
+	tmp2 = $d9
 .endscope
 
 S_CHECK_COLLISION:
@@ -440,12 +438,9 @@ S_CHECK_ISBLOCK_LR:
 
 ; ------------------------------------------------------------------------------
 ; X座標の合計移動量などを取得する
-; あたり判定前（あたり判定処理に使用）、あたり判定後（最終的なスピードを使う）に実行する
-; 引数：Yレジスタ=0で合計移動量を保存せず、mario_posx_blockだけ変更
 ; Aレジスタ破壊
 ; 戻り値無し
 ; ------------------------------------------------------------------------------
-
 
 S_STORE_AMOUNT_X:
 	jsr S_GET_TMP_POS
