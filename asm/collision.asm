@@ -88,25 +88,24 @@ S_CHECK_COLLISION:
 	jmp @END_CHECK_COLLISION_X
 @R:
 	jsr S_CHK_COLLISION_R
+
 @END_CHECK_COLLISION_X:
 	lda order_chk_collision
 	bne @CHECK_ISJUMP
 	rts  ; -----------------------------
-
 @CHECK_ISJUMP:
 	jsr S_GET_TMP_POS
 	lda mario_isjump
 	beq @CHECK_GROUND
 	jsr S_CHK_COLLISION_UP
-	lda mario_posy
-	add ver_speed
+	lda ver_speed
 	add ver_pos_fix_val
+	add mario_posy
 	sta mario_posy
 
 	lda order_chk_collision
 	beq @CHECK_COLLISION_X
 	rts  ; -----------------------------
-
 @CHECK_GROUND:
 	ldx S_CHECK_COLLISION::move_amount_block
 	ldy S_CHECK_COLLISION::tmp_block_posY
@@ -123,7 +122,7 @@ S_CHECK_COLLISION:
 	inx
 	jsr S_GET_ISCOLLISION
 	beq @STORE_SPEED_Y
-@COLLISION_GROUND:						; 下にブロックがあったときの処理
+@COLLISION_GROUND:									; 下にブロックがあったときの処理
 	lda S_CHECK_COLLISION::tmp_posY
 	and #%11110000
 	sta mario_posy
@@ -137,18 +136,18 @@ S_CHECK_COLLISION:
 	lda VER_FALL_FORCE_DATA
 	sta ver_force_fall
 	lda order_chk_collision
-	bne @END_CHECK_GROUND
+	bne @END
 	jmp @CHECK_COLLISION_X
-@SKIP1:
+@STORE_SPEED_Y:
 	lda ver_speed
 	add ver_pos_fix_val
 	add mario_posy
 	sta mario_posy
 
 	lda order_chk_collision
-	bne @END_CHECK_GROUND
+	bne @END
 	jmp @CHECK_COLLISION_X
-@END_CHECK_GROUND:
+@END:
 	rts  ; -----------------------------
 
 
@@ -298,6 +297,7 @@ S_GET_ISCOLLISION:
 	jsr S_GET_BLOCK
 	sta S_GET_ISCOLLISION::blockid
 	jsr S_IS_COLLISIONBLOCK
+	; 当たり判定のあるブロックが存在したときにマリオに対してどの位置にあるか返す
 	bne @COLLISION
 	rts  ; -----------------------------
 @COLLISION:
@@ -425,14 +425,14 @@ S_CHECK_ISBLOCK_LR:
 	tax
 	ldy S_CHECK_COLLISION::tmp_block_posY
 	jsr S_GET_ISCOLLISION
-	beq @SKIP1
+	beq @SKIP_RTS
 	rts  ; -----------------------------	; 衝突
-@SKIP1:
+@SKIP_RTS:
 	lda S_CHECK_COLLISION::tmp_posY
 	and #%00001111
-	bne @SKIP2
+	bne @CHK_NEXT
 	rts  ; -----------------------------	; 衝突なし、マリオの真横のみ確認
-@SKIP2:
+@CHK_NEXT:
 	iny
 	jsr S_GET_ISCOLLISION
 	rts  ; -----------------------------
