@@ -50,8 +50,6 @@ mario_pixel_speed = $28
 mario_speed_remainder = $29
 move_amount_sum = $2a
 move_amount_disp = $2b
-mario_posx_block = $2c					; 画面内でどのブロックにいるか（posXの上位4bit）
-mario_posx_pixel = $2d					; 1ブロックのどのピクセルにいるか（posXの下位4bit）
 
 ver_pos_origin = $2e					; ジャンプ開始時の位置
 ver_speed = $30							; 速度
