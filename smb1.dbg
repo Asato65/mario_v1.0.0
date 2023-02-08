@@ -1,4 +1,5 @@
 version	major=2,minor=0
+<<<<<<< HEAD
 info	csym=0,file=20,lib=0,line=1836,mod=1,scope=14,seg=10,span=1643,sym=372,type=9
 file	id=0,name="smb1.asm",size=5228,mtime=0x63E20384,mod=0
 file	id=1,name="./inc/const_val.inc",size=834,mtime=0x63E0804D,mod=0
@@ -20,6 +21,29 @@ file	id=16,name="./asm/draw_map.asm",size=11300,mtime=0x63E1CE29,mod=0
 file	id=17,name="./asm/status.asm",size=1656,mtime=0x63C73804,mod=0
 file	id=18,name="./asm/sound.asm",size=1568,mtime=0x63CA14F5,mod=0
 file	id=19,name="bg-spr.chr",size=8192,mtime=0x63C73804,mod=0
+=======
+info	csym=0,file=20,lib=0,line=1843,mod=1,scope=14,seg=10,span=1662,sym=370,type=9
+file	id=0,name="smb1.asm",size=5228,mtime=0x63E23EE4,mod=0
+file	id=1,name="./inc/const_val.inc",size=834,mtime=0x63DCF5F6,mod=0
+file	id=2,name="./inc/const_addr.inc",size=4112,mtime=0x63D3D0CA,mod=0
+file	id=3,name="./inc/map.inc",size=1292,mtime=0x63D6591C,mod=0
+file	id=4,name="./inc/plt_data.inc",size=231,mtime=0x63C54293,mod=0
+file	id=5,name="./inc/text_data.inc",size=48,mtime=0x63C54293,mod=0
+file	id=6,name="./inc/sound.inc",size=633,mtime=0x63C54293,mod=0
+file	id=7,name="./asm/macro.asm",size=3779,mtime=0x63E0EB77,mod=0
+file	id=8,name="./asm/main.asm",size=1465,mtime=0x63CD2CBE,mod=0
+file	id=9,name="./asm/sub.asm",size=2705,mtime=0x63CBAA78,mod=0
+file	id=10,name="./asm/move_chr.asm",size=856,mtime=0x63D7BF06,mod=0
+file	id=11,name="./asm/move_chr_x.asm",size=6047,mtime=0x63E0EBAF,mod=0
+file	id=12,name="./asm/move_chr_y.asm",size=4101,mtime=0x63DF7B95,mod=0
+file	id=13,name="./asm/collision.asm",size=11607,mtime=0x63E0EB77,mod=0
+file	id=14,name="./asm/anime.asm",size=5366,mtime=0x63E0EBB9,mod=0
+file	id=15,name="./asm/nmi.asm",size=1270,mtime=0x63C54293,mod=0
+file	id=16,name="./asm/draw_map.asm",size=11300,mtime=0x63E0EF5C,mod=0
+file	id=17,name="./asm/status.asm",size=1656,mtime=0x63C54293,mod=0
+file	id=18,name="./asm/sound.asm",size=1568,mtime=0x63CA77FE,mod=0
+file	id=19,name="bg-spr.chr",size=8192,mtime=0x63C54292,mod=0
+>>>>>>> 6ad3a2cdd160c572f05a93fd532a866e2dddf2e2
 line	id=0,file=9,line=79,span=161
 line	id=1,file=16,line=184,span=1099
 line	id=2,file=12,line=135,span=454

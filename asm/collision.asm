@@ -88,41 +88,42 @@ S_CHECK_COLLISION:
 	jmp @END_CHECK_COLLISION_X
 @R:
 	jsr S_CHK_COLLISION_R
-
 @END_CHECK_COLLISION_X:
 	lda order_chk_collision
 	bne @CHECK_ISJUMP
 	rts  ; -----------------------------
+
 @CHECK_ISJUMP:
 	jsr S_GET_TMP_POS
 	lda mario_isjump
 	beq @CHECK_GROUND
 	jsr S_CHK_COLLISION_UP
-	lda ver_speed
+	lda mario_posy
+	add ver_speed
 	add ver_pos_fix_val
-	add mario_posy
 	sta mario_posy
 
 	lda order_chk_collision
 	beq @CHECK_COLLISION_X
 	rts  ; -----------------------------
+
 @CHECK_GROUND:
 	ldx S_CHECK_COLLISION::move_amount_block
 	ldy S_CHECK_COLLISION::tmp_block_posY
 	iny
 	cpy #$0f
-	bpl @SKIP1
+	bpl @STORE_SPEED_Y
 	jsr S_GET_ISCOLLISION
-	bne @SKIP2
+	bne @COLLISION_GROUND
 	lda #$01
 	sta mario_isfly
 	lda S_CHECK_COLLISION::move_amount_sum
 	and #%00001111
-	beq @SKIP1
+	beq @STORE_SPEED_Y
 	inx
 	jsr S_GET_ISCOLLISION
-	beq @SKIP1
-@SKIP2:									; 下にブロックがあったときの処理
+	beq @STORE_SPEED_Y
+@COLLISION_GROUND:						; 下にブロックがあったときの処理
 	lda S_CHECK_COLLISION::tmp_posY
 	and #%11110000
 	sta mario_posy
@@ -136,7 +137,7 @@ S_CHECK_COLLISION:
 	lda VER_FALL_FORCE_DATA
 	sta ver_force_fall
 	lda order_chk_collision
-	bne @END
+	bne @END_CHECK_GROUND
 	jmp @CHECK_COLLISION_X
 @SKIP1:
 	lda ver_speed
@@ -145,9 +146,9 @@ S_CHECK_COLLISION:
 	sta mario_posy
 
 	lda order_chk_collision
-	bne @END
+	bne @END_CHECK_GROUND
 	jmp @CHECK_COLLISION_X
-@END:
+@END_CHECK_GROUND:
 	rts  ; -----------------------------
 
 
@@ -297,7 +298,6 @@ S_GET_ISCOLLISION:
 	jsr S_GET_BLOCK
 	sta S_GET_ISCOLLISION::blockid
 	jsr S_IS_COLLISIONBLOCK
-	; 当たり判定のあるブロックが存在したときにマリオに対してどの位置にあるか返す
 	bne @COLLISION
 	rts  ; -----------------------------
 @COLLISION:
