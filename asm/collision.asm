@@ -6,10 +6,6 @@
 ; 当たり判定
 ; 引数なし
 ; 戻り値無し
-; <動作の流れ>
-; 左右チェック
-; 上昇中：上チェック
-; その他：下チェック
 ; -----------------------------------------------------------------------------
 
 .scope S_CHECK_COLLISION
@@ -21,6 +17,9 @@
 	tmp2 = $d5
 	move_amount_sum = $d7				; 仮（破壊しないように）
 	move_amount_disp = $d8				; 仮
+	width = $d9
+	height = $da
+	move_amount_block = $db
 .endscope
 
 S_CHECK_COLLISION:
@@ -28,9 +27,9 @@ S_CHECK_COLLISION:
 	jsr S_GET_TMP_POS
 	lda move_amount_sum
 	and #%11110000
-	sta S_CHECK_COLLISION::tmp_posX
+	sta S_CHECK_COLLISION::move_amount_sum
 	rsft4
-	sta S_CHECK_COLLISION::tmp_block_posX
+	sta S_CHECK_COLLISION::move_amount_block
 	tax
 	ldy S_CHECK_COLLISION::tmp_block_posY
 	lda mario_isjump
@@ -39,12 +38,12 @@ S_CHECK_COLLISION:
 	jsr S_GET_BLOCK
 	jsr S_IS_COLLISIONBLOCK
 	beq @CHK_UP_R
-	lda S_CHECK_COLLISION::tmp_posX
+	lda S_CHECK_COLLISION::move_amount_sum
 	and #%00001111
 	cmp #$08
 	bmi @COLLISION_Y
 @CHK_UP_R:
-	lda S_CHECK_COLLISION::tmp_posX
+	lda S_CHECK_COLLISION::move_amount_sum
 	and #%00001111
 	beq @NOCOLLISION_Y
 
@@ -52,7 +51,7 @@ S_CHECK_COLLISION:
 	jsr S_GET_BLOCK
 	jsr S_IS_COLLISIONBLOCK
 	beq @NOCOLLISION_Y
-	lda S_CHECK_COLLISION::tmp_posX
+	lda S_CHECK_COLLISION::move_amount_sum
 	and #%00001111
 	cmp #$09
 	bpl @COLLISION_Y
@@ -64,7 +63,7 @@ S_CHECK_COLLISION:
 	bpl @NOCOLLISION_Y
 	jsr S_GET_ISCOLLISION
 	bne @COLLISION_Y
-	lda S_CHECK_COLLISION::tmp_posX
+	lda S_CHECK_COLLISION::move_amount_sum
 	and #%00001111
 	beq @NOCOLLISION_Y
 	inx
@@ -108,7 +107,7 @@ S_CHECK_COLLISION:
 	beq @CHECK_COLLISION_X
 	rts  ; -----------------------------
 @CHECK_GROUND:
-	ldx S_CHECK_COLLISION::tmp_block_posX
+	ldx S_CHECK_COLLISION::move_amount_block
 	ldy S_CHECK_COLLISION::tmp_block_posY
 	iny
 	cpy #$0f
@@ -117,7 +116,7 @@ S_CHECK_COLLISION:
 	bne @SKIP2
 	lda #$01
 	sta mario_isfly
-	lda S_CHECK_COLLISION::tmp_posX
+	lda S_CHECK_COLLISION::move_amount_sum
 	and #%00001111
 	beq @SKIP1
 	inx
@@ -157,7 +156,7 @@ S_CHECK_COLLISION:
 ; ------------------------------------------------------------------------------
 
 S_CHK_COLLISION_L:
-	lda S_CHECK_COLLISION::tmp_posX
+	lda S_CHECK_COLLISION::move_amount_sum
 	and #%00001111
 	beq @END_L
 	cmp #$0c
@@ -186,7 +185,7 @@ S_CHK_COLLISION_L:
 ; ------------------------------------------------------------------------------
 
 S_CHK_COLLISION_R:
-	lda S_CHECK_COLLISION::tmp_posX
+	lda S_CHECK_COLLISION::move_amount_sum
 	and #%00001111
 	beq @END_R
 	cmp #$05
@@ -221,12 +220,12 @@ S_CHK_COLLISION_R:
 ; ------------------------------------------------------------------------------
 
 S_CHK_COLLISION_UP:
-	ldx S_CHECK_COLLISION::tmp_block_posX
+	ldx S_CHECK_COLLISION::move_amount_block
 	ldy S_CHECK_COLLISION::tmp_block_posY
 	jsr S_GET_BLOCK
 	jsr S_IS_COLLISIONBLOCK
 	beq @SKIP1
-	lda S_CHECK_COLLISION::tmp_posX
+	lda S_CHECK_COLLISION::move_amount_sum
 	and #%00001111
 	cmp #$08
 	bmi @DOWN
@@ -234,7 +233,7 @@ S_CHK_COLLISION_UP:
 @SKIP1:
 	sta S_CHECK_COLLISION::tmp1
 
-	lda S_CHECK_COLLISION::tmp_posX
+	lda S_CHECK_COLLISION::move_amount_sum
 	and #%00001111
 	beq @SKIP2
 
@@ -242,7 +241,7 @@ S_CHK_COLLISION_UP:
 	jsr S_GET_BLOCK
 	jsr S_IS_COLLISIONBLOCK
 	beq @SKIP3
-	lda S_CHECK_COLLISION::tmp_posX
+	lda S_CHECK_COLLISION::move_amount_sum
 	and #%00001111
 	cmp #$09
 	bpl @DOWN
@@ -267,7 +266,7 @@ S_CHK_COLLISION_UP:
 	stx is_collision_up
 	rts  ; -----------------------------
 @MOVE_RIGHT:
-	lda S_CHECK_COLLISION::tmp_posX
+	lda S_CHECK_COLLISION::move_amount_sum
 	and #%11110000
 	add #$10
 	sub S_CHECK_COLLISION::move_amount_sum
@@ -276,14 +275,13 @@ S_CHK_COLLISION_UP:
 	sta mario_x_direction
 	rts  ; -----------------------------
 @MOVE_LEFT:
-	lda S_CHECK_COLLISION::tmp_posX
+	lda S_CHECK_COLLISION::move_amount_sum
 	and #%11110000
 	sub S_CHECK_COLLISION::move_amount_sum
 	cnn
 	sta mario_pixel_speed
 	lda #$00
 	sta mario_x_direction
-	; jsr S_FIX_OVER_L
 	rts  ; -----------------------------
 
 
@@ -303,7 +301,7 @@ S_GET_ISCOLLISION:
 	bne @COLLISION
 	rts  ; -----------------------------
 @COLLISION:
-	lda S_CHECK_COLLISION::tmp_posX
+	lda S_CHECK_COLLISION::move_amount_sum
 	and #%00001111
 	cmp #$09
 	bmi @COLLISION_EDGE
@@ -353,11 +351,11 @@ S_GET_BLOCK:
 ; ------------------------------------------------------------------------------
 
 S_IS_COLLISIONBLOCK:
-	cmp #$00
-	bne @SKIP1
+	cmp #SKY
+	bne @RTN1
 	lda #$00
 	rts  ; -----------------------------
-@SKIP1:
+@RTN1:
 	lda #$01
 	rts  ; -----------------------------
 
@@ -396,23 +394,13 @@ S_GET_TMP_POS:
 	inx
 	stx S_CHECK_COLLISION::move_amount_disp
 @SKIP_INC_DISP:
-	pha
 	and #%00001111
 	sta mario_posx_pixel
-	pla
-	rsft4
-	sta mario_posx_block
 
-	lda mario_pixel_speed
-	ldx mario_x_direction
-	bne @SKIP_CNN
-	cnn
-@SKIP_CNN:
-	add move_amount_sum
+	lda S_CHECK_COLLISION::move_amount_sum		; 以前のtmp_posXと同じ
 	tax
-	sta S_CHECK_COLLISION::tmp_posX
 	rsft4
-	sta S_CHECK_COLLISION::tmp_block_posX
+	sta S_CHECK_COLLISION::move_amount_block
 
 	lda mario_posy
 	add ver_speed
@@ -433,7 +421,7 @@ S_GET_TMP_POS:
 ; ------------------------------------------------------------------------------
 
 S_CHECK_ISBLOCK_LR:
-	add S_CHECK_COLLISION::tmp_block_posX
+	add S_CHECK_COLLISION::move_amount_block
 	tax
 	ldy S_CHECK_COLLISION::tmp_block_posY
 	jsr S_GET_ISCOLLISION
