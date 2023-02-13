@@ -14,9 +14,12 @@
 	tmp2 = $d8
 	start_x = $d9
 	start_y = $da
+	collision_pos = $db
 .endscope
 
 S_CHECK_COLLISION:
+	lda #$00
+	sta S_CHECK_COLLISION::collision_pos
 	jsr S_GET_TMP_POS
 	lda mario_x_direction
 	bne @R
@@ -43,11 +46,35 @@ S_CHECK_COLLISION:
 
 S_GET_ISCOLLISION_L:
 	ldx S_CHECK_COLLISION::tmp_block_posX
-	beq @SKIP1
-	dex
 	ldy S_CHECK_COLLISION::tmp_block_posY
+	jsr S_GET_ISBLOCK					; TODO: x,yレジスタを破壊しない
+	beq @NOCOLLISION_LEFT
+	lda #%1000							; 左上
+	ora S_CHECK_COLLISION::collision_pos
+	sta S_CHECK_COLLISION::collision_pos
+@NOCOLLISION_LEFT:
+	; あたり判定の幅が10H以外の大きな敵の時の動作（まだ組んでない）
+	; lda S_CHECK_COLLISION::height
+	; cmp #$11
+	; bpl @SKIP
+	lda S_CHECK_COLLISION::tmp_posY
+	and #%11110000
+	cmp #$e0
+	bpl @NOCOLLISION
+	; tmpPos+height > (tmpPos&F0H)+10H　ならもう一つブロックチェック
+	; これを変形して　(tmpPos&F0H)+10H-height < tmpPos
+	; よって　(tmpPos&F0H)+10H-height >= tmpPos ならスキップ
+	add #$10
+	sub S_CHECK_COLLISION::height
+	cmp S_CHECK_COLLISION::tmp_posY
+	bpl @NOCOLLISION
+	iny
 	jsr S_GET_ISBLOCK
-
+	beq @NOCOLLISION
+	lda #%0010							; 左下
+	ora S_CHECK_COLLISION::collision_pos
+	sta S_CHECK_COLLISION::collision_pos
+@NOCOLLISION:
 	rts  ; -----------------------------
 
 
@@ -56,7 +83,31 @@ S_GET_ISCOLLISION_L:
 ; ------------------------------------------------------------------------------
 
 S_GET_ISCOLLISION_R:
-
+	ldx S_CHECK_COLLISION::tmp_block_posX
+	inx
+	ldy S_CHECK_COLLISION::tmp_block_posY
+	jsr S_GET_ISBLOCK
+	beq @NOCOLLISION_RIGHT
+	lda #%0100							; 右上
+	ora S_CHECK_COLLISION::collision_pos
+	sta S_CHECK_COLLISION::collision_pos
+	rts  ; -----------------------------
+@NOCOLLISION_LEFT:
+	lda S_CHECK_COLLISION::tmp_posY
+	and #%11110000
+	cmp #$e0
+	bpl @NOCOLLISION
+	add #$10
+	sub S_CHECK_COLLISION::height
+	cmp S_CHECK_COLLISION::tmp_posY
+	bpl @NOCOLLISION
+	iny
+	jsr S_GET_ISBLOCK
+	beq @NOCOLLISION
+	lda #%0001							; 右下
+	ora S_CHECK_COLLISION::collision_pos
+	sta S_CHECK_COLLISION::collision_pos
+@NOCOLLISION:
 	rts  ; -----------------------------
 
 
@@ -65,7 +116,27 @@ S_GET_ISCOLLISION_R:
 ; ------------------------------------------------------------------------------
 
 S_GET_ISCOLLISION_GROUND:
-
+	ldx S_CHECK_COLLISION::tmp_block_posX
+	ldy S_CHECK_COLLISION::tmp_block_posY
+	iny
+	jsr S_GET_ISBLOCK
+	beq @NOCOLLISION_GROUND
+	lda #%0010							; 左下
+	ora S_CHECK_COLLISION::collision_pos
+	sta S_CHECK_COLLISION::collision_pos
+@NOCOLLISION_GROUND:
+	lda S_CHECK_COLLISION::tmp_posX
+	add #$10
+	sub S_CHECK_COLLISION::width
+	cmp S_CHECK_COLLISION::tmp_posX
+	bpl @NOCOLLISION
+	inx
+	jsr S_GET_ISBLOCK
+	beq @NOCOLLISION
+	lda #%0001
+	ora S_CHECK_COLLISION::collision_pos
+	sta S_CHECK_COLLISION::collision_pos
+@NOCOLLISION:
 	rts  ; -----------------------------
 
 
