@@ -47,7 +47,7 @@ S_CHECK_COLLISION:
 S_GET_ISCOLLISION_L:
 	ldx S_CHECK_COLLISION::tmp_block_posX
 	ldy S_CHECK_COLLISION::tmp_block_posY
-	jsr S_GET_ISBLOCK					; TODO: x,yレジスタを破壊しない
+	jsr S_GET_ISBLOCK					; TODO: x, yレジスタを破壊しない
 	beq @NOCOLLISION_LEFT
 	lda #%1000							; 左上
 	ora S_CHECK_COLLISION::collision_pos
@@ -133,7 +133,7 @@ S_GET_ISCOLLISION_GROUND:
 	inx
 	jsr S_GET_ISBLOCK
 	beq @NOCOLLISION
-	lda #%0001
+	lda #%0001							; 右下
 	ora S_CHECK_COLLISION::collision_pos
 	sta S_CHECK_COLLISION::collision_pos
 @NOCOLLISION:
@@ -145,7 +145,62 @@ S_GET_ISCOLLISION_GROUND:
 ; ------------------------------------------------------------------------------
 
 S_GET_ISCOLLISION_UP:
+	ldx S_CHECK_COLLISION::tmp_block_posX
+	ldy S_CHECK_COLLISION::tmp_block_posY
+	jsr S_GET_ISBLOCK
+	beq @NOCOLLISION_UP
+	lda #%1000							; 左上
+	ora S_CHECK_COLLISION::collision_pos
+	sta S_CHECK_COLLISION::collision_pos
+@NOCOLLISION_UP:
+	lda S_CHECK_COLLISION::tmp_posX
+	add #$10
+	sub S_CHECK_COLLISION::width
+	cmp S_CHECK_COLLISION::tmp_posX
+	bpl @NOCOLLISION
+	inx
+	jsr S_GET_ISBLOCK
+	beq @NOCOLLISION
+	lda #%0100							; 右上
+	ora S_CHECK_COLLISION::collision_pos
+	sta S_CHECK_COLLISION::collision_pos
+@NOCOLLISION:
+	rts  ; -----------------------------
 
+
+; ------------------------------------------------------------------------------
+; 引数の座標のブロック判定
+; 引数：X, YレジスタにブロックのX, Y座標
+; 破壊：Aレジスタ（X, Y破壊しない）
+; 戻り値：無し
+; ------------------------------------------------------------------------------
+
+S_GET_ISBLOCK:
+	lda S_CHECK_COLLISION::move_amount_disp
+	cpx #$10
+	bmi @NOINCDISP
+	eor #%00000001						; +1する→下位1bit変化
+@NOINCDISP:
+	and #%00000001
+	add #$04
+	sta addr_upper
+	txa
+	lsft4
+	sta addr_lower
+	tya
+	ora addr_lower
+	sta addr_lower
+	sty S_CHECK_COLLISION::tmp1
+	ldy #$00
+	lda (addr_lower), y
+	ldy S_CHECK_COLLISION::tmp1
+	; ブロックにあたり判定があるか
+	cmp #$00
+	beq @NOCOLLISION
+	lda #$01
+	rts  ; -----------------------------
+@NOCOLLISION:
+	lda #$00
 	rts  ; -----------------------------
 
 
