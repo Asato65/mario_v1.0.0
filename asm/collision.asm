@@ -9,7 +9,7 @@
 	tmp_block_posY = $d3
 	width = $d4
 	height = $d5
-	move_amount_block = $d6
+	move_amount_disp = $d6
 	tmp1 = $d7
 	tmp2 = $d8
 	start_x = $d9
@@ -20,6 +20,13 @@
 S_CHECK_COLLISION:
 	lda #$00
 	sta S_CHECK_COLLISION::collision_pos
+	sta S_CHECK_COLLISION::start_y
+	lda #$01
+	sta S_CHECK_COLLISION::start_x
+	lda #$0d
+	sta S_CHECK_COLLISION::width
+	lda #$0f
+	sta S_CHECK_COLLISION::height
 	jsr S_GET_TMP_POS
 	lda mario_x_direction
 	bne @R
@@ -36,6 +43,45 @@ S_CHECK_COLLISION:
 	jsr S_GET_ISCOLLISION_UP
 
 @MOVE:
+	lda S_CHECK_COLLISION::collision_pos
+	;ldx mario_x_direction
+	;ldy mario_isjump
+	;bne @SKIP1
+
+	; cmp #%0000
+	; beq @NOCOLLISION
+	; cmp #%0001
+	; beq @RIGHT_COLLISION
+	; cmp #%0010
+	; beq @LEFT_COLLISION
+	; cmp #%0011
+	; beq @GROUND_COLLISION
+	; cmp #%0100
+	; beq @RIGHT_COLLISION
+	; cmp #%0101
+	; beq @RIGHT_COLLISION
+	; cmp #%0110
+	; beq @STEPS_COLLISION
+	; cmp #%0111
+	; beq @RIGHT_GROUND_COLLISION
+	; cmp #%1000
+	; beq @UP_COLLISION
+	; cmp #%1001
+	; beq @STEPS_COLLISION
+	; cmp #%1010
+	; beq @LEFT_COLLISION
+	; cmp #%1011
+	; beq @LEFT_GROUND_COLLISION
+	; cmp #%1100
+	; beq @UP_COLLISION
+	; cmp #%1101
+	; beq @RIGHT_UP_COLLISION
+	; cmp #%1110
+	; beq @LEFTUP_COLLISION
+	; cmp #%1111
+	; beq @NOCOLLISION
+
+
 
 	rts  ; -----------------------------
 
@@ -47,13 +93,13 @@ S_CHECK_COLLISION:
 S_GET_ISCOLLISION_L:
 	ldx S_CHECK_COLLISION::tmp_block_posX
 	ldy S_CHECK_COLLISION::tmp_block_posY
-	jsr S_GET_ISBLOCK					; TODO: x, yレジスタを破壊しない
+	jsr S_GET_ISBLOCK
 	beq @NOCOLLISION_LEFT
 	lda #%1000							; 左上
 	ora S_CHECK_COLLISION::collision_pos
 	sta S_CHECK_COLLISION::collision_pos
 @NOCOLLISION_LEFT:
-	; あたり判定の幅が10H以外の大きな敵の時の動作（まだ組んでない）
+	; あたり判定の幅が10H以上の大きな敵の時の動作（まだ組んでない）
 	; lda S_CHECK_COLLISION::height
 	; cmp #$11
 	; bpl @SKIP
@@ -92,7 +138,7 @@ S_GET_ISCOLLISION_R:
 	ora S_CHECK_COLLISION::collision_pos
 	sta S_CHECK_COLLISION::collision_pos
 	rts  ; -----------------------------
-@NOCOLLISION_LEFT:
+@NOCOLLISION_RIGHT:
 	lda S_CHECK_COLLISION::tmp_posY
 	and #%11110000
 	cmp #$e0
@@ -215,7 +261,7 @@ S_GET_TMP_POS:
 	lda mario_x_direction
 	bne @SKIP_FIX_OVER_L
 	lda mario_posx
-	cmp mario_pixel_speed
+	cmp mario_pixel_speed				; subの代わり poxX - speed >= 0
 	bpl @SKIP_FIX_OVER_L
 	sta mario_pixel_speed				; 左端修正
 @SKIP_FIX_OVER_L:
@@ -224,7 +270,7 @@ S_GET_TMP_POS:
 	ldx mario_x_direction				; 分岐用
 	bne @R
 	sub mario_pixel_speed
-	sta S_CHECK_COLLISION::move_amount_sum
+	sta S_CHECK_COLLISION::tmp_posX
 	bcs @STORE_MOVE_AMOUNT
 	ldx move_amount_disp
 	dex
@@ -232,15 +278,15 @@ S_GET_TMP_POS:
 	jmp @STORE_MOVE_AMOUNT
 @R:
 	add mario_pixel_speed
-	sta S_CHECK_COLLISION::move_amount_sum
+	sta S_CHECK_COLLISION::tmp_posX
 	bcc @STORE_MOVE_AMOUNT
 	ldx move_amount_disp
 	inx
 	stx S_CHECK_COLLISION::move_amount_disp
 @STORE_MOVE_AMOUNT:
-	lda S_CHECK_COLLISION::move_amount_sum		; 以前のtmp_posXと同じ
+	lda S_CHECK_COLLISION::tmp_posX		; 以前のtmp_posXと同じ
 	rsft4
-	sta S_CHECK_COLLISION::move_amount_block
+	sta S_CHECK_COLLISION::tmp_block_posX
 
 	lda mario_posy
 	add ver_speed
