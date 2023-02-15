@@ -15,6 +15,7 @@
 	start_x = $d9
 	start_y = $da
 	collision_pos = $db
+	test = $dc
 .endscope
 
 S_CHECK_COLLISION:
@@ -43,7 +44,13 @@ S_CHECK_COLLISION:
 	jsr S_GET_ISCOLLISION_UP
 
 @MOVE:
-	lda S_CHECK_COLLISION::collision_pos
+	lda #$01
+	sta S_CHECK_COLLISION::test
+
+	lda S_CHECK_COLLISION::tmp_posX
+	sta move_amount_sum
+	lda S_CHECK_COLLISION::move_amount_disp
+	sta move_amount_disp
 	;ldx mario_x_direction
 	;ldy mario_isjump
 	;bne @SKIP1
@@ -230,10 +237,10 @@ S_GET_ISBLOCK:
 	and #%00000001
 	add #$04
 	sta addr_upper
-	txa
+	tya
 	lsft4
 	sta addr_lower
-	tya
+	txa
 	ora addr_lower
 	sta addr_lower
 	sty S_CHECK_COLLISION::tmp1
