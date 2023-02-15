@@ -48,9 +48,14 @@ S_CHECK_COLLISION:
 	sta S_CHECK_COLLISION::test
 
 	lda S_CHECK_COLLISION::tmp_posX
+	sub S_CHECK_COLLISION::start_x
 	sta move_amount_sum
 	lda S_CHECK_COLLISION::move_amount_disp
 	sta move_amount_disp
+	lda mario_posy
+	add ver_pos_fix_val
+	add ver_speed
+	sta mario_posy
 	;ldx mario_x_direction
 	;ldy mario_isjump
 	;bne @SKIP1
