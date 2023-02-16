@@ -3,19 +3,17 @@
 ; ------------------------------------------------------------------------------
 
 .scope S_CHECK_COLLISION
-	tmp_posX = $d0
-	tmp_block_posX = $d1
-	tmp_posY = $d2
-	tmp_block_posY = $d3
-	width = $d4
-	height = $d5
-	move_amount_disp = $d6
-	tmp1 = $d7
-	tmp2 = $d8
-	start_x = $d9
-	start_y = $da
-	collision_pos = $db
-	test = $dc
+	tmp_posX				= $d0
+	tmp_block_posX			= $d1
+	tmp_posY				= $d2
+	tmp_block_posY			= $d3
+	width					= $d4
+	height					= $d5
+	move_amount_disp		= $d6
+	tmp1					= $d7
+	start_x					= $d8
+	start_y					= $d9
+	collision_pos			= $da
 .endscope
 
 S_CHECK_COLLISION:
@@ -44,9 +42,6 @@ S_CHECK_COLLISION:
 	jsr S_GET_ISCOLLISION_UP
 
 @MOVE:
-	lda #$01
-	sta S_CHECK_COLLISION::test
-
 	lda S_CHECK_COLLISION::tmp_posX
 	sub S_CHECK_COLLISION::start_x
 	sta move_amount_sum
@@ -56,47 +51,94 @@ S_CHECK_COLLISION:
 	add ver_pos_fix_val
 	add ver_speed
 	sta mario_posy
-	;ldx mario_x_direction
-	;ldy mario_isjump
-	;bne @SKIP1
 
-	; cmp #%0000
-	; beq @NOCOLLISION
-	; cmp #%0001
-	; beq @RIGHT_COLLISION
-	; cmp #%0010
-	; beq @LEFT_COLLISION
-	; cmp #%0011
-	; beq @GROUND_COLLISION
-	; cmp #%0100
-	; beq @RIGHT_COLLISION
-	; cmp #%0101
-	; beq @RIGHT_COLLISION
-	; cmp #%0110
-	; beq @STEPS_COLLISION
-	; cmp #%0111
-	; beq @RIGHT_GROUND_COLLISION
-	; cmp #%1000
-	; beq @UP_COLLISION
-	; cmp #%1001
-	; beq @STEPS_COLLISION
-	; cmp #%1010
-	; beq @LEFT_COLLISION
-	; cmp #%1011
-	; beq @LEFT_GROUND_COLLISION
-	; cmp #%1100
-	; beq @UP_COLLISION
-	; cmp #%1101
-	; beq @RIGHT_UP_COLLISION
-	; cmp #%1110
-	; beq @LEFTUP_COLLISION
-	; cmp #%1111
-	; beq @NOCOLLISION
-
-
+	cmp #%0001
+	beq @RIGHT_COLLISION
+	cmp #%0010
+	beq @LEFT_COLLISION
+	cmp #%0011
+	beq @GROUND_COLLISION
+	cmp #%0100
+	beq @RIGHT_COLLISION
+	cmp #%0101
+	beq @RIGHT_COLLISION
+	cmp #%0110
+	beq @STEP1_COLLISION				; 右上に上がっていく
+	cmp #%0111
+	beq @RIGHT_GROUND_COLLISION
+	cmp #%1000
+	beq @UP_COLLISION
+	cmp #%1001
+	beq @STEP2_COLLISION				; 右上に下がっていく
+	cmp #%1010
+	beq @LEFT_COLLISION
+	cmp #%1011
+	beq @LEFT_GROUND_COLLISION
+	cmp #%1100
+	beq @UP_COLLISION
+	cmp #%1101
+	beq @RIGHT_UP_COLLISION
+	cmp #%1110
+	beq @LEFTUP_COLLISION
 
 	rts  ; -----------------------------
 
+@RIGHT_COLLISION:
+	jsr S_FIX_R_COLLISION
+	rts  ; -----------------------------
+@LEFT_COLLISION:
+	jsr S_FIX_L_COLLISION
+	rts  ; -----------------------------
+@GROUND_COLLISION:
+	jsr S_FIX_GROUND_COLLISION
+	rts  ; -----------------------------
+@UP_COLLISION:
+	jsr S_FIX_UP_COLLISION
+	rts  ; -----------------------------
+@RIGHT_GROUND_COLLISION:
+	jsr S_FIX_R_COLLISION
+	jsr S_FIX_GROUND_COLLISION
+	rts  ; -----------------------------
+@RIGHT_UP_COLLISION:
+	jsr S_FIX_R_COLLISION
+	jsr S_FIX_UP_COLLISION
+	rts  ; -----------------------------
+@LEFT_GROUND_COLLISION:
+	jsr S_FIX_L_COLLISION
+	jsr S_FIX_GROUND_COLLISION
+	rts  ; -----------------------------
+@LEFTUP_COLLISION:
+	jsr S_FIX_L_COLLISION
+	jsr S_FIX_UP_COLLISION
+	rts  ; -----------------------------
+@STEP1_COLLISION:
+	lda mario_x_direction				; 階段に乗っているのか下から当たっているのか判定
+	bne @STEP1_COLLISION_R
+	jsr S_FIX_L_COLLISION				; 左から（下から）当たっている
+	jsr S_FIX_UP_COLLISION
+	rts  ; -----------------------------
+@STEP1_COLLISION_R:						; 右から（上から）当たっている
+	jsr S_FIX_R_COLLISION
+	jsr S_FIX_GROUND_COLLISION
+	rts  ; -----------------------------
+@STEP2_COLLISION:
+	lda mario_x_direction				; 階段に乗っているのか下から当たっているのか判定
+	bne @STEP1_COLLISION_R
+	jsr S_FIX_L_COLLISION				; 左から（上から）当たっている
+	jsr S_FIX_GROUND_COLLISION
+	rts  ; -----------------------------
+@STEP2_COLLISION_R:						; 右から（下から）当たっている
+	jsr S_FIX_R_COLLISION
+	jsr S_FIX_UP_COLLISION
+	rts  ; -----------------------------
+@NOCOLLISION:
+
+	rts  ; -----------------------------
+
+
+;* -----------------------------------------------------------------------------
+;* 以下，上下左右当たり判定チェック
+;* -----------------------------------------------------------------------------
 
 ; ------------------------------------------------------------------------------
 ; 左あたり判定チェック
@@ -226,6 +268,47 @@ S_GET_ISCOLLISION_UP:
 	rts  ; -----------------------------
 
 
+;* -----------------------------------------------------------------------------
+;* 以下，上下左右座標修正
+;* -----------------------------------------------------------------------------
+
+; ------------------------------------------------------------------------------
+; 右へ座標修正（左に衝突）
+; ------------------------------------------------------------------------------
+
+S_FIX_L_COLLISION:
+	rts  ; -----------------------------
+
+
+; ------------------------------------------------------------------------------
+; 左へ座標修正（右に衝突）
+; ------------------------------------------------------------------------------
+
+
+S_FIX_R_COLLISION:
+
+	rts  ; -----------------------------
+
+
+; ------------------------------------------------------------------------------
+; 下へ座標修正（上に衝突）
+; ------------------------------------------------------------------------------
+
+S_FIX_UP_COLLISION:
+
+	rts  ; -----------------------------
+
+
+; ------------------------------------------------------------------------------
+; 上へ座標修正（下に衝突）
+; ------------------------------------------------------------------------------
+
+S_FIX_GROUND_COLLISION:
+
+	rts  ; -----------------------------
+
+
+;
 ; ------------------------------------------------------------------------------
 ; 引数の座標のブロック判定
 ; 引数：X, YレジスタにブロックのX, Y座標
@@ -246,6 +329,7 @@ S_GET_ISBLOCK:
 	lsft4
 	sta addr_lower
 	txa
+	and #%00001111
 	ora addr_lower
 	sta addr_lower
 	sty S_CHECK_COLLISION::tmp1
