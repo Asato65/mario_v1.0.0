@@ -3,20 +3,25 @@
 ; ------------------------------------------------------------------------------
 
 .scope S_CHECK_COLLISION
-	tmp_posX				= $d0
-	tmp_block_posX			= $d1
-	tmp_posY				= $d2
-	tmp_block_posY			= $d3
-	width					= $d4
-	height					= $d5
-	move_amount_disp		= $d6
-	tmp1					= $d7
-	start_x					= $d8
-	start_y					= $d9
-	collision_pos			= $da
+	tmp_pos_left			= $d0
+	tmp_pos_right			= $d1
+	tmp_pos_top				= $d2
+	tmp_pos_bottom			= $d3
+	tmp_block_pos_left		= $d4
+	tmp_block_pos_right		= $d5
+	tmp_block_pos_top		= $d6
+	tmp_block_pos_bottom	= $d7
+	width					= $d8
+	height					= $d9
+	move_amount_disp		= $da
+	tmp1					= $db
+	start_x					= $dc
+	start_y					= $dd
+	collision_pos			= $de
 .endscope
 
 S_CHECK_COLLISION:
+	; マリオ用データ初期化（仮）
 	lda #$00
 	sta S_CHECK_COLLISION::collision_pos
 	sta S_CHECK_COLLISION::start_y
@@ -26,6 +31,8 @@ S_CHECK_COLLISION:
 	sta S_CHECK_COLLISION::width
 	lda #$0f
 	sta S_CHECK_COLLISION::height
+
+	; ここから処理
 	jsr S_GET_TMP_POS
 	lda mario_x_direction
 	bne @R
@@ -42,20 +49,11 @@ S_CHECK_COLLISION:
 	jsr S_GET_ISCOLLISION_UP
 
 @MOVE:
-	lda S_CHECK_COLLISION::tmp_posX
-	sub S_CHECK_COLLISION::start_x
-	sta move_amount_sum
-	lda S_CHECK_COLLISION::move_amount_disp
-	sta move_amount_disp
-	lda mario_posy
-	add ver_pos_fix_val
-	add ver_speed
-	sta mario_posy
-
+	lda S_CHECK_COLLISION::collision_pos
 	cmp #%0001
-	beq @RIGHT_COLLISION
+	beq @GROUND_COLLISION
 	cmp #%0010
-	beq @LEFT_COLLISION
+	beq @GROUND_COLLISION
 	cmp #%0011
 	beq @GROUND_COLLISION
 	cmp #%0100
@@ -81,60 +79,77 @@ S_CHECK_COLLISION:
 	cmp #%1110
 	beq @LEFTUP_COLLISION
 
-	rts  ; -----------------------------
+	jmp @END
 
 @RIGHT_COLLISION:
 	jsr S_FIX_R_COLLISION
-	rts  ; -----------------------------
+	jmp @END
 @LEFT_COLLISION:
 	jsr S_FIX_L_COLLISION
-	rts  ; -----------------------------
+	jmp @END
 @GROUND_COLLISION:
 	jsr S_FIX_GROUND_COLLISION
-	rts  ; -----------------------------
+	jmp @END
 @UP_COLLISION:
 	jsr S_FIX_UP_COLLISION
-	rts  ; -----------------------------
+	jmp @END
 @RIGHT_GROUND_COLLISION:
 	jsr S_FIX_R_COLLISION
 	jsr S_FIX_GROUND_COLLISION
-	rts  ; -----------------------------
+	jmp @END
 @RIGHT_UP_COLLISION:
 	jsr S_FIX_R_COLLISION
 	jsr S_FIX_UP_COLLISION
-	rts  ; -----------------------------
+	jmp @END
 @LEFT_GROUND_COLLISION:
 	jsr S_FIX_L_COLLISION
 	jsr S_FIX_GROUND_COLLISION
-	rts  ; -----------------------------
+	jmp @END
 @LEFTUP_COLLISION:
 	jsr S_FIX_L_COLLISION
 	jsr S_FIX_UP_COLLISION
-	rts  ; -----------------------------
+	jmp @END
 @STEP1_COLLISION:
 	lda mario_x_direction				; 階段に乗っているのか下から当たっているのか判定
 	bne @STEP1_COLLISION_R
 	jsr S_FIX_L_COLLISION				; 左から（下から）当たっている
 	jsr S_FIX_UP_COLLISION
-	rts  ; -----------------------------
+	jmp @END
 @STEP1_COLLISION_R:						; 右から（上から）当たっている
 	jsr S_FIX_R_COLLISION
 	jsr S_FIX_GROUND_COLLISION
-	rts  ; -----------------------------
+	jmp @END
 @STEP2_COLLISION:
 	lda mario_x_direction				; 階段に乗っているのか下から当たっているのか判定
 	bne @STEP1_COLLISION_R
 	jsr S_FIX_L_COLLISION				; 左から（上から）当たっている
 	jsr S_FIX_GROUND_COLLISION
-	rts  ; -----------------------------
+	jmp @END
 @STEP2_COLLISION_R:						; 右から（下から）当たっている
 	jsr S_FIX_R_COLLISION
 	jsr S_FIX_UP_COLLISION
-	rts  ; -----------------------------
-@NOCOLLISION:
+	jmp @END
+
+@END:
+	lda move_amount_sum
+	ldx mario_x_direction
+	bne @R2
+	sub mario_pixel_speed
+	clc
+	bcc @SKIP1							; 強制ジャンプ
+@R2:
+	add mario_pixel_speed
+@SKIP1:
+	sta move_amount_sum
+	lda move_amount_disp
+	add #$00
+	sta move_amount_disp
+	lda mario_posy
+	add ver_speed
+	add ver_pos_fix_val
+	sta mario_posy
 
 	rts  ; -----------------------------
-
 
 ;* -----------------------------------------------------------------------------
 ;* 以下，上下左右当たり判定チェック
@@ -145,8 +160,8 @@ S_CHECK_COLLISION:
 ; ------------------------------------------------------------------------------
 
 S_GET_ISCOLLISION_L:
-	ldx S_CHECK_COLLISION::tmp_block_posX
-	ldy S_CHECK_COLLISION::tmp_block_posY
+	ldx S_CHECK_COLLISION::tmp_block_pos_left
+	ldy S_CHECK_COLLISION::tmp_block_pos_top
 	jsr S_GET_ISBLOCK
 	beq @NOCOLLISION_LEFT
 	lda #%1000							; 左上
@@ -157,16 +172,16 @@ S_GET_ISCOLLISION_L:
 	; lda S_CHECK_COLLISION::height
 	; cmp #$11
 	; bpl @SKIP
-	lda S_CHECK_COLLISION::tmp_posY
+	lda S_CHECK_COLLISION::tmp_pos_top
 	and #%11110000
+	bpl @SKIP1							; 00以上スキップ
 	cmp #$e0
-	bpl @NOCOLLISION
-	; tmpPos+height > (tmpPos&F0H)+10H　ならもう一つブロックチェック
-	; これを変形して　(tmpPos&F0H)+10H-height < tmpPos
-	; よって　(tmpPos&F0H)+10H-height >= tmpPos ならスキップ
+	bpl @NOCOLLISION					; 00未満e0以上のときに衝突なし
+@SKIP1:
+	; tmpPosBottom > (tmpPosTop&F0H)+10H ならもう一つブロックチェック
+	; よって，(tmpPosTmp&F0H) + 10H >= tmpPosBottom ならブロックチェックしない
 	add #$10
-	sub S_CHECK_COLLISION::height
-	cmp S_CHECK_COLLISION::tmp_posY
+	cmp S_CHECK_COLLISION::tmp_pos_bottom
 	bpl @NOCOLLISION
 	iny
 	jsr S_GET_ISBLOCK
@@ -183,9 +198,9 @@ S_GET_ISCOLLISION_L:
 ; ------------------------------------------------------------------------------
 
 S_GET_ISCOLLISION_R:
-	ldx S_CHECK_COLLISION::tmp_block_posX
-	inx
-	ldy S_CHECK_COLLISION::tmp_block_posY
+	ldx S_CHECK_COLLISION::tmp_block_pos_right
+	;inx
+	ldy S_CHECK_COLLISION::tmp_block_pos_top
 	jsr S_GET_ISBLOCK
 	beq @NOCOLLISION_RIGHT
 	lda #%0100							; 右上
@@ -193,14 +208,16 @@ S_GET_ISCOLLISION_R:
 	sta S_CHECK_COLLISION::collision_pos
 	rts  ; -----------------------------
 @NOCOLLISION_RIGHT:
-	lda S_CHECK_COLLISION::tmp_posY
+	lda S_CHECK_COLLISION::tmp_pos_top
 	and #%11110000
+	bpl @SKIP1
 	cmp #$e0
 	bpl @NOCOLLISION
+@SKIP1:
 	add #$10
-	sub S_CHECK_COLLISION::height
-	cmp S_CHECK_COLLISION::tmp_posY
+	cmp S_CHECK_COLLISION::tmp_pos_bottom
 	bpl @NOCOLLISION
+
 	iny
 	jsr S_GET_ISBLOCK
 	beq @NOCOLLISION
@@ -216,8 +233,8 @@ S_GET_ISCOLLISION_R:
 ; ------------------------------------------------------------------------------
 
 S_GET_ISCOLLISION_GROUND:
-	ldx S_CHECK_COLLISION::tmp_block_posX
-	ldy S_CHECK_COLLISION::tmp_block_posY
+	ldx S_CHECK_COLLISION::tmp_block_pos_left
+	ldy S_CHECK_COLLISION::tmp_block_pos_top
 	iny
 	jsr S_GET_ISBLOCK
 	beq @NOCOLLISION_GROUND
@@ -225,10 +242,12 @@ S_GET_ISCOLLISION_GROUND:
 	ora S_CHECK_COLLISION::collision_pos
 	sta S_CHECK_COLLISION::collision_pos
 @NOCOLLISION_GROUND:
-	lda S_CHECK_COLLISION::tmp_posX
+	; tmpPosRight > (tmpPosLeft&F0H)+10H ならブロックチェック
+	; よって，(tmpPosTmp&F0H) + 10H >= tmpPosBottom ならブロックチェックしない
+	lda S_CHECK_COLLISION::tmp_pos_left
+	and #%11110000
 	add #$10
-	sub S_CHECK_COLLISION::width
-	cmp S_CHECK_COLLISION::tmp_posX
+	cmp S_CHECK_COLLISION::tmp_pos_right
 	bpl @NOCOLLISION
 	inx
 	jsr S_GET_ISBLOCK
@@ -245,18 +264,18 @@ S_GET_ISCOLLISION_GROUND:
 ; ------------------------------------------------------------------------------
 
 S_GET_ISCOLLISION_UP:
-	ldx S_CHECK_COLLISION::tmp_block_posX
-	ldy S_CHECK_COLLISION::tmp_block_posY
+	ldx S_CHECK_COLLISION::tmp_block_pos_left
+	ldy S_CHECK_COLLISION::tmp_block_pos_top
 	jsr S_GET_ISBLOCK
 	beq @NOCOLLISION_UP
 	lda #%1000							; 左上
 	ora S_CHECK_COLLISION::collision_pos
 	sta S_CHECK_COLLISION::collision_pos
 @NOCOLLISION_UP:
-	lda S_CHECK_COLLISION::tmp_posX
+	lda S_CHECK_COLLISION::tmp_pos_left
+	and #%11110000
 	add #$10
-	sub S_CHECK_COLLISION::width
-	cmp S_CHECK_COLLISION::tmp_posX
+	cmp S_CHECK_COLLISION::tmp_pos_right
 	bpl @NOCOLLISION
 	inx
 	jsr S_GET_ISBLOCK
@@ -277,6 +296,14 @@ S_GET_ISCOLLISION_UP:
 ; ------------------------------------------------------------------------------
 
 S_FIX_L_COLLISION:
+	lda move_amount_sum
+	add S_CHECK_COLLISION::start_x
+	and #%00001111
+	beq @SKIP1
+	ora #$ff
+@SKIP1:
+	sta mario_pixel_speed
+
 	rts  ; -----------------------------
 
 
@@ -284,8 +311,27 @@ S_FIX_L_COLLISION:
 ; 左へ座標修正（右に衝突）
 ; ------------------------------------------------------------------------------
 
-
 S_FIX_R_COLLISION:
+	lda move_amount_sum
+	add S_CHECK_COLLISION::start_x
+	add S_CHECK_COLLISION::width
+	;and #%00001111
+	cnn
+	and #%00001111
+	sta mario_pixel_speed
+
+	; fix L over
+	lda mario_posx
+	bmi @SKIP_FIX_L_OVER
+	sub mario_pixel_speed
+	bpl @SKIP_FIX_L_OVER
+	lda mario_posx
+	ldx mario_x_direction
+	beq @L
+	cnn
+@L:
+	sta mario_pixel_speed
+@SKIP_FIX_L_OVER:
 
 	rts  ; -----------------------------
 
@@ -366,7 +412,7 @@ S_GET_TMP_POS:
 	ldx mario_x_direction				; 分岐用
 	bne @R
 	sub mario_pixel_speed
-	sta S_CHECK_COLLISION::tmp_posX
+	sta S_CHECK_COLLISION::tmp_pos_left
 	bcs @STORE_MOVE_AMOUNT
 	ldx move_amount_disp
 	dex
@@ -374,22 +420,34 @@ S_GET_TMP_POS:
 	jmp @STORE_MOVE_AMOUNT
 @R:
 	add mario_pixel_speed
-	sta S_CHECK_COLLISION::tmp_posX
+	sta S_CHECK_COLLISION::tmp_pos_left
 	bcc @STORE_MOVE_AMOUNT
 	ldx move_amount_disp
 	inx
 	stx S_CHECK_COLLISION::move_amount_disp
 @STORE_MOVE_AMOUNT:
-	lda S_CHECK_COLLISION::tmp_posX		; 以前のtmp_posXと同じ
+	lda S_CHECK_COLLISION::tmp_pos_left		; 以前のtmp_posXと同じ
 	rsft4
-	sta S_CHECK_COLLISION::tmp_block_posX
+	sta S_CHECK_COLLISION::tmp_block_pos_left
+
+	lda S_CHECK_COLLISION::tmp_pos_left
+	add S_CHECK_COLLISION::width
+	sta S_CHECK_COLLISION::tmp_pos_right
+	rsft4
+	sta S_CHECK_COLLISION::tmp_block_pos_right
 
 	lda mario_posy
 	add ver_speed
 	add ver_pos_fix_val
 	add S_CHECK_COLLISION::start_y
-	sta S_CHECK_COLLISION::tmp_posY
+	sta S_CHECK_COLLISION::tmp_pos_top
 	rsft4
-	sta S_CHECK_COLLISION::tmp_block_posY
+	sta S_CHECK_COLLISION::tmp_block_pos_top
+
+	lda S_CHECK_COLLISION::tmp_pos_top
+	add S_CHECK_COLLISION::height
+	sta S_CHECK_COLLISION::tmp_pos_bottom
+	rsft4
+	sta S_CHECK_COLLISION::tmp_block_pos_bottom
 
 	rts  ; -----------------------------
