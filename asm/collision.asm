@@ -29,7 +29,7 @@ S_CHECK_COLLISION:
 	sta S_CHECK_COLLISION::start_x
 	lda #$0d
 	sta S_CHECK_COLLISION::width
-	lda #$0f
+	lda #$10
 	sta S_CHECK_COLLISION::height
 
 	; ここから処理
@@ -234,8 +234,7 @@ S_GET_ISCOLLISION_R:
 
 S_GET_ISCOLLISION_GROUND:
 	ldx S_CHECK_COLLISION::tmp_block_pos_left
-	ldy S_CHECK_COLLISION::tmp_block_pos_top
-	iny
+	ldy S_CHECK_COLLISION::tmp_block_pos_bottom
 	jsr S_GET_ISBLOCK
 	beq @NOCOLLISION_GROUND
 	lda #%0010							; 左下
@@ -300,7 +299,8 @@ S_FIX_L_COLLISION:
 	add S_CHECK_COLLISION::start_x
 	and #%00001111
 	beq @SKIP1
-	ora #$ff
+	;cnn
+	;ora #$f0
 @SKIP1:
 	sta mario_pixel_speed
 
@@ -315,7 +315,6 @@ S_FIX_R_COLLISION:
 	lda move_amount_sum
 	add S_CHECK_COLLISION::start_x
 	add S_CHECK_COLLISION::width
-	;and #%00001111
 	cnn
 	and #%00001111
 	sta mario_pixel_speed
@@ -332,6 +331,8 @@ S_FIX_R_COLLISION:
 @L:
 	sta mario_pixel_speed
 @SKIP_FIX_L_OVER:
+nop
+nop
 
 	rts  ; -----------------------------
 
@@ -341,6 +342,8 @@ S_FIX_R_COLLISION:
 ; ------------------------------------------------------------------------------
 
 S_FIX_UP_COLLISION:
+	lda #$00
+	sta ver_speed
 
 	rts  ; -----------------------------
 
@@ -350,6 +353,16 @@ S_FIX_UP_COLLISION:
 ; ------------------------------------------------------------------------------
 
 S_FIX_GROUND_COLLISION:
+	lda mario_posy
+	add S_CHECK_COLLISION::start_y
+	add S_CHECK_COLLISION::height
+	cnn
+	and #%00001111
+	sta ver_speed
+
+	lda #$00
+	sta ver_pos_fix_val
+	sta mario_isfly
 
 	rts  ; -----------------------------
 
