@@ -7,16 +7,21 @@ S_GET_SPEED_Y:
 		jsr MOVE_PROCESS
 		rts  ; -------------------------
 
-; Xレジスタ引数: mario_posy
+
 S_RESET_PARAM_JUMP:
-		lda #$00
-		sta ver_speed
+		; lda #$00
+		; sta ver_speed
+		; sta ver_force_decimal_part
+		; sta ver_force_fall
+		; sta ver_speed_decimal_part
+		; sta ver_pos_decimal_part
+		; sta mario_isfly
+		; stx mario_posy
+
+		lda VER_FORCE_DECIMAL_PART_DATA
 		sta ver_force_decimal_part
+		lda VER_FALL_FORCE_DATA
 		sta ver_force_fall
-		sta ver_speed_decimal_part
-		sta ver_pos_decimal_part
-		sta mario_isfly
-		stx mario_posy
 		rts  ; -------------------------
 
 

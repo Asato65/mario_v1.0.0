@@ -312,11 +312,20 @@ S_FIX_L_COLLISION:
 	lda move_amount_sum
 	add S_CHECK_COLLISION::start_x
 	and #%00001111
-	beq @SKIP1
-	;cnn
-	;ora #$f0
+	cmp #$04
+	bmi @SKIP1
+	lda #$00
 @SKIP1:
 	sta mario_pixel_speed
+
+	; fix L over
+	lda mario_posx
+	bmi @SKIP_FIX_L_OVER
+	cmp mario_pixel_speed
+	bpl @SKIP_FIX_L_OVER
+	lda mario_posx
+	sta mario_pixel_speed
+@SKIP_FIX_L_OVER:
 
 	rts  ; -----------------------------
 
@@ -331,20 +340,11 @@ S_FIX_R_COLLISION:
 	add S_CHECK_COLLISION::width
 	cnn
 	and #%00001111
+	cmp #$04
+	bmi @SKIP1
+	lda #$00
+@SKIP1:
 	sta mario_pixel_speed
-
-	; fix L over
-	lda mario_posx
-	bmi @SKIP_FIX_L_OVER
-	sub mario_pixel_speed
-	bpl @SKIP_FIX_L_OVER
-	lda mario_posx
-	ldx mario_x_direction
-	beq @L
-	cnn
-@L:
-	sta mario_pixel_speed
-@SKIP_FIX_L_OVER:
 
 	rts  ; -----------------------------
 
@@ -366,20 +366,21 @@ S_FIX_UP_COLLISION:
 ; ------------------------------------------------------------------------------
 
 S_FIX_GROUND_COLLISION:
+	ldx #$00
 	lda ver_speed
-	beq @END
 	bmi @END
+	beq @RESET_FIX_VAL
 	lda mario_posy
 	add S_CHECK_COLLISION::start_y
 	add S_CHECK_COLLISION::height
 	cnn
 	and #%00001111
 	sta ver_speed
-
-	lda #$00
-	sta ver_pos_fix_val
-	sta mario_isfly
+	stx mario_isfly
+@RESET_FIX_VAL:
+	stx ver_pos_fix_val
 @END:
+	jsr S_RESET_PARAM_JUMP
 	rts  ; -----------------------------
 
 
@@ -431,6 +432,7 @@ S_GET_TMP_POS:
 	lda mario_x_direction
 	bne @SKIP_FIX_OVER_L
 	lda mario_posx
+	bmi @SKIP_FIX_OVER_L
 	cmp mario_pixel_speed				; subの代わり poxX - speed >= 0
 	bpl @SKIP_FIX_OVER_L
 	sta mario_pixel_speed				; 左端修正
@@ -460,6 +462,7 @@ S_GET_TMP_POS:
 
 	lda S_CHECK_COLLISION::tmp_pos_left
 	add S_CHECK_COLLISION::width
+	sub #$01
 	sta S_CHECK_COLLISION::tmp_pos_right
 	rsft4
 	sta S_CHECK_COLLISION::tmp_block_pos_right

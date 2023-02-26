@@ -59,6 +59,14 @@ S_MAIN:
 @PAUSING_SKIP:
 		jsr S_SOUND
 
+		lda ver_speed
+		ora mario_isfly
+		and #%01111111
+		beq @SKIP1
+		lda #$01
+@SKIP1:
+		sta mario_isfly
+
 		lda #$01
 		sta isend_main					; フラグを立てる
 

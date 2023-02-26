@@ -78,14 +78,14 @@
 		sta move_amount_sum
 
 		lda #$c0						; マリオのY座標
-		; sta mario_posy
-		tax		; 引数
+		sta mario_posy
 		jsr S_RESET_PARAM_JUMP
 
 		; マリオの方向
 		lda #$01
 		sta mario_x_direction
 		sta mario_face_direction
+		sta ver_speed
 
 		; ステータスの表示
 
