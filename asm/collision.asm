@@ -18,6 +18,14 @@
 	start_x					= $dc
 	start_y					= $dd
 	collision_pos			= $de
+	tmp_fixpos_left			= $df
+	tmp_fixpos_right		= $e0
+	tmp_fixpos_top			= $e1
+	tmp_fixpos_bottom		= $e2
+	tmp_block_fixpos_left	= $e3
+	tmp_block_fixpos_right	= $e4
+	tmp_block_fixpos_top	= $e5
+	tmp_block_fixpos_bottom	= $e6
 .endscope
 
 S_CHECK_COLLISION:
@@ -213,7 +221,6 @@ S_GET_ISCOLLISION_L:
 
 S_GET_ISCOLLISION_R:
 	ldx S_CHECK_COLLISION::tmp_block_pos_right
-	;inx
 	ldy S_CHECK_COLLISION::tmp_block_pos_top
 	jsr S_GET_ISBLOCK
 	beq @NOCOLLISION_RIGHT
@@ -461,7 +468,7 @@ S_GET_TMP_POS:
 
 	lda S_CHECK_COLLISION::tmp_pos_left
 	add S_CHECK_COLLISION::width
-	sub #$01
+	sub #1
 	sta S_CHECK_COLLISION::tmp_pos_right
 	rsft4
 	sta S_CHECK_COLLISION::tmp_block_pos_right
@@ -479,5 +486,30 @@ S_GET_TMP_POS:
 	sta S_CHECK_COLLISION::tmp_pos_bottom
 	rsft4
 	sta S_CHECK_COLLISION::tmp_block_pos_bottom
+
+	; store fix pos
+	lda S_CHECK_COLLISION::tmp_pos_left
+	sub #$01
+	sta S_CHECK_COLLISION::tmp_fixpos_left
+	rsft4
+	sta S_CHECK_COLLISION::tmp_block_fixpos_left
+
+	lda S_CHECK_COLLISION::tmp_pos_top
+	sub #$01
+	sta S_CHECK_COLLISION::tmp_fixpos_top
+	rsft4
+	sta S_CHECK_COLLISION::tmp_block_fixpos_top
+
+	lda S_CHECK_COLLISION::tmp_pos_right
+	add #$01
+	sta S_CHECK_COLLISION::tmp_fixpos_right
+	rsft4
+	sta S_CHECK_COLLISION::tmp_block_fixpos_right
+
+	lda S_CHECK_COLLISION::tmp_pos_bottom
+	sub #$01
+	sta S_CHECK_COLLISION::tmp_fixpos_bottom
+	rsft4
+	sta S_CHECK_COLLISION::tmp_block_fixpos_bottom
 
 	rts  ; -----------------------------
