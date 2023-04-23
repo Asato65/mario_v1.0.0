@@ -18,14 +18,14 @@
 	start_x					= $dc
 	start_y					= $dd
 	collision_pos			= $de
-	tmp_fixpos_left			= $df
-	tmp_fixpos_right		= $e0
-	tmp_fixpos_top			= $e1
-	tmp_fixpos_bottom		= $e2
-	tmp_block_fixpos_left	= $e3
-	tmp_block_fixpos_right	= $e4
-	tmp_block_fixpos_top	= $e5
-	tmp_block_fixpos_bottom	= $e6
+	tmp_fixpos_left			= $d0		; アドレス上のものと使い回し (tmp_pos_XXX == tmp_fixpos_XXX)
+	tmp_fixpos_top			= $d2		; アドレス上のものと使い回し (tmp_pos_XXX == tmp_fixpos_XXX)
+	tmp_block_fixpos_left	= $d4		; アドレス上のものと使い回し (tmp_pos_XXX == tmp_fixpos_XXX)
+	tmp_block_fixpos_top	= $d6		; アドレス上のものと使い回し (tmp_pos_XXX == tmp_fixpos_XXX)
+	tmp_fixpos_right		= $df
+	tmp_fixpos_bottom		= $e0
+	tmp_block_fixpos_right	= $e1
+	tmp_block_fixpos_bottom	= $e2
 .endscope
 
 S_CHECK_COLLISION:
@@ -483,31 +483,20 @@ S_GET_TMP_POS:
 
 	lda S_CHECK_COLLISION::tmp_pos_top
 	add S_CHECK_COLLISION::height
+	sub #1
 	sta S_CHECK_COLLISION::tmp_pos_bottom
 	rsft4
 	sta S_CHECK_COLLISION::tmp_block_pos_bottom
 
 	; store fix pos
-	lda S_CHECK_COLLISION::tmp_pos_left
-	sub #$01
-	sta S_CHECK_COLLISION::tmp_fixpos_left
-	rsft4
-	sta S_CHECK_COLLISION::tmp_block_fixpos_left
-
-	lda S_CHECK_COLLISION::tmp_pos_top
-	sub #$01
-	sta S_CHECK_COLLISION::tmp_fixpos_top
-	rsft4
-	sta S_CHECK_COLLISION::tmp_block_fixpos_top
-
 	lda S_CHECK_COLLISION::tmp_pos_right
-	add #$01
+	add #1
 	sta S_CHECK_COLLISION::tmp_fixpos_right
 	rsft4
 	sta S_CHECK_COLLISION::tmp_block_fixpos_right
 
 	lda S_CHECK_COLLISION::tmp_pos_bottom
-	sub #$01
+	add #1
 	sta S_CHECK_COLLISION::tmp_fixpos_bottom
 	rsft4
 	sta S_CHECK_COLLISION::tmp_block_fixpos_bottom
