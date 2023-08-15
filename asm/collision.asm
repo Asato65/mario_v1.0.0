@@ -227,7 +227,7 @@ S_GET_ISCOLLISION_R:
 	lda #%0100							; 右上
 	ora S_CHECK_COLLISION::collision_pos
 	sta S_CHECK_COLLISION::collision_pos
-	rts  ; -----------------------------
+	;rts  ; -----------------------------
 @NOCOLLISION_RIGHT:
 	lda S_CHECK_COLLISION::tmp_pos_top
 	and #%11110000

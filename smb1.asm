@@ -1,4 +1,5 @@
 .setcpu "6502"
+.feature c_comments
 .autoimport on
 
 .include "./inc/const_val.inc"			; 定数定義
@@ -35,20 +36,32 @@
 .proc RESET
 		; IRQ初期化
 		sei								; IRQ禁止
+		cld								; BCD禁止
 
-		; PPU初期化
-		lda #%00001000
-		sta PPU_SET1
-
+		; NesDevではAPUのフレームIRQを無効にしているが，特定のマッパーでのみ有効
 		ldx #$ff
 		txs
+		inx
+		stx $2000						; NMI無効化
+		stx $2001						; 描画停止
+		stx $4010						; APU DMCのIRQ（bit7）無効化
 
-@WAIT_END_VBLANK:
-		lda PPU_STATUS
-		bpl @WAIT_END_VBLANK
+		/*
+		A & $2002の結果でZ（ゼロフラグ）設定
+		$2002のbit7 -> N（ネガティブフラグ）, bit6 -> V（オーバーフロー）に入る
+		$2002のbit7にはVblank，bit6は0爆弾の状態が入っている
+		リセット後のこのフラグは，状態が不定なので，一回bit命令でリセットが出来るらしい
+		*/
+		bit $2002
 
-		lda #$00
-		sta PPU_SET2
+		; Vblank待機1回目
+@VBLANK_WAIT1:
+		bit $2002
+		bpl @VBLANK_WAIT1
+
+		; PPUが安定するまで約30,000サイクルの時間がある -> この間にRAMリセット
+
+		txa									; X = 0
 
 		; RAM初期化
 		inirm $00, #$00
@@ -59,16 +72,6 @@
 		inirm $0500, #$00
 		inirm $0600, #$00
 		inirm $0700, #$00
-
-		inivrm #$00
-
-		; パレットテーブルの転送
-		lda #$3f
-		sta PPU_ADDRESS
-		lda #$00
-		sta PPU_ADDRESS
-		lda #$0f
-		sta PPU_ACCESS
 
 		jsr S_INIT_SOUND
 
@@ -87,8 +90,35 @@
 		sta mario_face_direction
 		sta ver_speed
 
-		; ステータスの表示
+		; Vblank待機2回目
+@VBLANK_WAIT2:
+		bit $2002
+		bpl @VBLANK_WAIT2
 
+	ldx #$00
+	ldy #$00
+:
+	dex
+	bne :-
+	dey
+	bne :-
+
+	lda #%00010000						; |NMI-OFF|PPU=MASTER|SPR8*8|BG$1000|SPR$0000|VRAM+1|SCREEN$2000|
+	sta PPU_SET1
+	lda #%00000110						; |R|G|B|DISP-SPR|DISP-BG|SHOW-L8-SPR|SHOW-L8-BG|MODE=COLOR|
+	sta PPU_SET2
+
+		inivrm #$00
+
+		; パレットテーブルの転送
+		lda #$3f
+		sta PPU_ADDRESS
+		lda #$00
+		sta PPU_ADDRESS
+		lda #$0f
+		sta PPU_ACCESS
+
+		; ステータスの表示
 		; 不透明キャラクター配置（ゼロスプライト用）
 		lda #$20
 		sta PPU_ADDRESS
@@ -147,6 +177,8 @@
 		lda #%00000000					; 垂直|水平|優先度下げる|3bit無効|パレット2bit
 		sta CHR_BUFFER::SPR0_ATTR
 
+		lda #0
+		sta $2003
 		lda #$03	; SPR転送
 		sta PPU_DMA
 
