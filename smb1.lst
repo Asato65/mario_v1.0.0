@@ -1,0 +1,2817 @@
+ca65 V2.19 - Git de30a57
+Main file   : smb1.asm
+Current file: smb1.asm
+
+000000r 1               .setcpu "6502"
+000000r 1               .feature c_comments
+000000r 1               .autoimport on
+000000r 1               
+000000r 1               .include "./inc/const_val.inc"			; 定数定義
+000000r 2               ; MAPのチップ
+000000r 2               SKY = 0
+000000r 2               GROUND = 'G'							; G：地面
+000000r 2               BLOCK = 'B'								; B：レンガ
+000000r 2               QBLOCK = 'Q'							; Q：？ブロック
+000000r 2               
+000000r 2               ; VRAMのチップ
+000000r 2               VSKY = $00
+000000r 2               VGROUND = $01
+000000r 2               VBLOCK1 = $02
+000000r 2               VBLOCK2 = $03
+000000r 2               VQBLOCK1 = $10
+000000r 2               VQBLOCK2 = $11
+000000r 2               VQBLOCK3 = $12
+000000r 2               VQBLOCK4 = $13
+000000r 2               
+000000r 2               ; unused
+000000r 2               PSKY = $00
+000000r 2               PGROUND = $00
+000000r 2               PBLOCK = $00
+000000r 2               PQBLOCK = $01
+000000r 2               
+000000r 2               ;WALK_AMOUNT_MOVE = $01
+000000r 2               ;DASH_AMOUNT_MOVE = $02
+000000r 2               MAX_WALK_ACCELERATION = $18
+000000r 2               MAX_WALK_ACCELERATION_L = $e8
+000000r 2               MAX_DASH_ACCELERATION = $29
+000000r 2               MAX_DASH_ACCELERATION_L = $d7
+000000r 2               MARIO_MAX_POSX = $70
+000000r 2               
+000000r 2               MARIO_FIRST_SPEED = $05
+000000r 2               MARIO_DASH_INCSPEED = $02
+000000r 2               MARIO_DASH_MAXSPEED = $28
+000000r 2               MARIO_WALK_INCSPEED = $01
+000000r 2               MARIO_WALK_MAXSPEED = $1c
+000000r 2               
+000000r 2               
+000000r 2               CON_A		= %10000000
+000000r 2               CON_B		= %01000000
+000000r 2               CON_SEL		= %00100000
+000000r 2               CON_START	= %00010000
+000000r 2               CON_U		= %00001000
+000000r 2               CON_D		= %00000100
+000000r 2               CON_L		= %00000010
+000000r 2               CON_R		= %00000001
+000000r 2               
+000000r 1               .include "./inc/const_addr.inc"			; 変数名定義
+000000r 2               ; ----- ゼロページ -----
+000000r 2               tmp1						= $00
+000000r 2               tmp2						= $01
+000000r 2               tmp3						= $02
+000000r 2               
+000000r 2               plt_vram_upper				= $03
+000000r 2               
+000000r 2               addr_lower					= $05
+000000r 2               addr_upper					= $06
+000000r 2               
+000000r 2               ; コントローラー
+000000r 2               con_player1					= $07
+000000r 2               con_player1_prev			= $08
+000000r 2               con_player1_pushstart		= $09
+000000r 2               con_player2					= $0a
+000000r 2               con_player2_prev			= $0b
+000000r 2               con_player2_pushstart		= $0c
+000000r 2               
+000000r 2               ; DRAWMAP
+000000r 2               map_addr_lower				= $0d
+000000r 2               map_addr_upper				= $0e
+000000r 2               map_vaddr_upper				= $0f
+000000r 2               map_vaddr_lower				= $10
+000000r 2               main_disp					= $11		; メインスクリーン
+000000r 2               map_scroll					= $12		; マップX座標
+000000r 2               map_scroll_prev				= $13
+000000r 2               map_buff_lower				= $14		; ram_posx_cnt
+000000r 2               map_buff_upper				= $15		; (ram_posx_lpcnt & 01H + 4H) = 04H/05H
+000000r 2               obj_posx					= $16
+000000r 2               obj_posy					= $17
+000000r 2               obj_chip					= $18		; 600Hのバッファで使われるチップ番号
+000000r 2               obj_num						= $19
+000000r 2               ram_posx_cnt				= $1a
+000000r 2               ram_posx_lpcnt				= $1b
+000000r 2               ef_cnt						= $1c
+000000r 2               ram_posx					= $1d
+000000r 2               ram_posy					= $1e
+000000r 2               map_loop_y					= $1f
+000000r 2               
+000000r 2               ; movechr
+000000r 2               mario_speed_L				= $20
+000000r 2               mario_speed_R				= $21
+000000r 2               mario_speed_tmp				= $22
+000000r 2               check_con_btn				= $23
+000000r 2               brake						= $24
+000000r 2               mario_x_direction			= $25
+000000r 2               mario_face_direction		= $26
+000000r 2               mario_subpixel_speed		= $27
+000000r 2               mario_pixel_speed			= $28
+000000r 2               mario_speed_remainder		= $29
+000000r 2               move_amount_sum				= $2a
+000000r 2               move_amount_disp			= $2b
+000000r 2               
+000000r 2               ver_pos_origin				= $2e		; ジャンプ開始時の位置
+000000r 2               ver_speed					= $30		; 速度
+000000r 2               ver_force_decimal_part		= $31		; 現在の加速度
+000000r 2               ver_force_fall				= $32		; 降下時の加速度
+000000r 2               ver_speed_decimal_part		= $33		; 加速度の増加値
+000000r 2               ver_pos_decimal_part		= $34		; 累積計算での補正値
+000000r 2               
+000000r 2               mario_posx = $35
+000000r 2               mario_posy = $36
+000000r 2               mario_isfly = $37
+000000r 2               
+000000r 2               mario_speed_x				= $38		; 未使用
+000000r 2               
+000000r 2               mario_anime_counter			= $39
+000000r 2               mario_anime_timer			= $3a
+000000r 2               mario_isjump				= $3b
+000000r 2               mario_isend_brake			= $3c
+000000r 2               flagA						= $3d
+000000r 2               mario_anime_speed			= $3e
+000000r 2               
+000000r 2               game_timer_bcd1				= $3f		; 3Byte確保、1が最上位
+000000r 2               game_timer_bcd2				= $40
+000000r 2               game_timer_bcd3				= $41
+000000r 2               timer_update_flag			= $42
+000000r 2               pause_flag					= $43
+000000r 2               
+000000r 2               sound_ch1_num				= $44
+000000r 2               sound_ch1_counter			= $45
+000000r 2               sound_ch1_num_prev			= $46
+000000r 2               sound_ch1_frame_cnt	= $47
+000000r 2               
+000000r 2               cannot_control				= $48		; ポーズ音が鳴っている時動けないようにする、死んだ時などにも使える
+000000r 2               is_collision_up				= $49
+000000r 2               ver_pos_fix_val				= $4a		; 補正値
+000000r 2               
+000000r 2               order_chk_collision			= $4b		; 当たり判定のチェックする順番
+000000r 2               
+000000r 2               
+000000r 2               ; カウンター（動作チェック用）
+000000r 2               nmi_counter					= $f0		; NMIに入ったらとりあえずインクリメント
+000000r 2               frame_counter				= $f1		; 画面更新をしたときだけインクリメント
+000000r 2               
+000000r 2               ; フラグ
+000000r 2               isend_main					= $f2		; メインルーチン終了フラグ
+000000r 2               
+000000r 2               
+000000r 2               ; ----- 通常RAM -----
+000000r 2               
+000000r 2               plt_arr						= $0600		; 8H Byte
+000000r 2               map_data_arr				= $0610		; 8*F=78H Byte
+000000r 2               plt_addr_arr				= $0690		; 10H Byte
+000000r 2               
+000000r 2               
+000000r 2               ; キャラクターバッファ
+000000r 2               .scope CHR_BUFFER
+000000r 2               	START					= $0300
+000000r 2               	SPR0_POSY				= $0300		; 0番スプライト
+000000r 2               	SPR0_CHIP				= $0301		; マリオチップ番号
+000000r 2               	SPR0_ATTR				= $0302		; マリオ属性
+000000r 2               	SPR0_POSX				= $0303		; マリオX座標
+000000r 2               	MARIO_POSY				= $0304		; マリオY座標
+000000r 2               	MARIO_CHIP				= $0305		; マリオチップ番号
+000000r 2               	MARIO_ATTR				= $0306		; マリオ属性
+000000r 2               	MARIO_POSX				= $0307		; マリオX座標
+000000r 2               .endscope
+000000r 2               
+000000r 2               
+000000r 2               ; ----- I/Oポート -----
+000000r 2               PPU_SET1					= $2000
+000000r 2               PPU_SET2					= $2001
+000000r 2               PPU_STATUS					= $2002
+000000r 2               PPU_SCROLL					= $2005
+000000r 2               PPU_ADDRESS 				= $2006
+000000r 2               PPU_ACCESS					= $2007
+000000r 2               
+000000r 2               SOUND_CH1_1					= $4000		; Duty(2)|時間カウンタ|音響変化|ボリューム(4)
+000000r 2               SOUND_CH1_2					= $4001		; 周波数変化|変化速度(3)|変化方向|変化範囲(3)
+000000r 2               SOUND_CH1_3					= $4002		; 周波数下位
+000000r 2               SOUND_CH1_4					= $4003		; 再生時間(5)|周波数上位(3)
+000000r 2               SOUND_CH2_1					= $4004
+000000r 2               SOUND_CH2_2					= $4005
+000000r 2               SOUND_CH2_3					= $4006
+000000r 2               SOUND_CH2_4					= $4007
+000000r 2               PPU_DMA						= $4014
+000000r 2               SOUND_CHANNEL				= $4015		; 未使用(3)|DPCM|ノイズ|三角波|CH2|CH1
+000000r 2               CON1_PORT					= $4016
+000000r 2               CON2_PORT					= $4017
+000000r 2               
+000000r 1               .include "./inc/map.inc"				; マップデータ
+000000r 2               ; 床=A=41 => 00
+000000r 2               ; レンガ=B=42 => 01
+000000r 2               ; これはランレングスでなく，オブジェクトの位置を指定して配置した方がいい？
+000000r 2               
+000000r 2               MAP1_1_POS:
+000000r 2               	; 1
+000000r 2               	;.byte $21	; X 2, Y 1に配置
+000000r 2  02 03        	.byte $02, $03
+000002r 2  12 13 1B 1C  	.byte $12, $13, $1b, $1c
+000006r 2  2B           	.byte $2b
+000007r 2  3A 3B        	.byte $3a, $3b
+000009r 2  79           	.byte $79
+00000Ar 2  8A           	.byte $8a
+00000Br 2  9B 9C        	.byte $9b, $9c
+00000Dr 2  AC           	.byte $ac
+00000Er 2  CC           	.byte $cc
+00000Fr 2  DB DC        	.byte $db, $dc
+000011r 2  EA EB EC     	.byte $ea, $eb, $ec
+000014r 2  EF           	.byte $ef
+000015r 2               	; 2
+000015r 2  4A 4B 4C     	.byte $4a, $4b, $4c
+000018r 2  8D 8E        	.byte $8d, $8e
+00001Ar 2  C9           	.byte $c9
+00001Br 2  EF           	.byte $ef
+00001Cr 2               	; 3
+00001Cr 2  13           	.byte $13
+00001Dr 2  14           	.byte $14
+00001Er 2  4D           	.byte $4d
+00001Fr 2  4E           	.byte $4e
+000020r 2  A8           	.byte $a8
+000021r 2  EF           	.byte $ef
+000022r 2               	; 4
+000022r 2  53           	.byte $53
+000023r 2  EF           	.byte $ef
+000024r 2               
+000024r 2  FF           	.byte $ff
+000025r 2               
+000025r 2               MAP1_1_OBJ:
+000025r 2  51 42        	.byte QBLOCK, BLOCK
+000027r 2  42 42 42 42  	.byte BLOCK, BLOCK, BLOCK, BLOCK
+00002Br 2  42           	.byte BLOCK
+00002Cr 2  42 42        	.byte BLOCK, BLOCK
+00002Er 2  42           	.byte BLOCK
+00002Fr 2  42           	.byte BLOCK
+000030r 2  42 42        	.byte BLOCK, BLOCK
+000032r 2  42           	.byte BLOCK
+000033r 2  42           	.byte BLOCK
+000034r 2  42 42        	.byte BLOCK, BLOCK
+000036r 2  42 42 42     	.byte BLOCK, BLOCK, BLOCK
+000039r 2  EF           	.byte $ef
+00003Ar 2               	;2
+00003Ar 2  42 42 42     	.byte BLOCK, BLOCK, BLOCK
+00003Dr 2  00 00        	.byte SKY, SKY
+00003Fr 2  51           	.byte QBLOCK
+000040r 2  EF           	.byte $ef
+000041r 2               	;3
+000041r 2  42           	.byte BLOCK
+000042r 2  42           	.byte BLOCK
+000043r 2  42           	.byte BLOCK
+000044r 2  42           	.byte BLOCK
+000045r 2  51           	.byte QBLOCK
+000046r 2  EF           	.byte $ef
+000047r 2               	; 4
+000047r 2  42           	.byte BLOCK
+000048r 2  EF           	.byte $ef
+000049r 2               	;end
+000049r 2  FF           	.byte $ff
+00004Ar 2               
+00004Ar 2               MAP1_1_DATA:
+00004Ar 2  00           	.byte $00	; 地上
+00004Br 2  02           	.byte $02	; 画面下
+00004Cr 2               
+00004Cr 2               
+00004Cr 2               ; よって，レンガが(8, 8)に配置される（分割したマップの）
+00004Cr 2               ; オブジェクト情報は400~5ff番地に保存する
+00004Cr 2               ; 400番台，500番台に入る時にマップ番号を更新
+00004Cr 2               
+00004Cr 1               .include "./inc/plt_data.inc"			; パレットデータ
+00004Cr 2               INITIAL_PLT:
+00004Cr 2               		; BG
+00004Cr 2  22 17 36 0F  		.byte $22,$17,$36,$0f
+000050r 2  00 28 17 07  		.byte $00,$28,$17,$07
+000054r 2  00 22 00 00  		.byte $00,$22,$00,$00
+000058r 2  00 00 00 00  		.byte $00,$00,$00,$00
+00005Cr 2               		; SPR
+00005Cr 2  22 16 27 18  		.byte $22,$16,$27,$18
+000060r 2  00 00 00 00  		.byte $00,$00,$00,$00
+000064r 2  00 00 00 00  		.byte $00,$00,$00,$00
+000068r 2  00 00 00 00  		.byte $00,$00,$00,$00
+00006Cr 2               
+00006Cr 1               .include "./inc/text_data.inc"			; 文字データ
+00006Cr 2               STATUS_STR_TIME:
+00006Cr 2  20 59        	.byte $20, $59
+00006Er 2  54 49 4D 45  	.byte "TIME"
+000072r 2               
+000072r 1               .include "./inc/sound.inc"				; 音データ
+000072r 2               ; PAUSE
+000072r 2               PAUSE_SOUND_LOWER:
+000072r 2  80 A0 80 A0  		.byte $80, $a0, $80, $a0, $80, $a0
+000076r 2  80 A0        
+000078r 2               
+000078r 2               PAUSE_SOUND_UPPER:						; 上位5bitは音の長さ、フレームで管理するため設定不要
+000078r 2  F0 F0 F0 F0  		.byte $f0, $f0, $f0, $f0, $f0, $f0
+00007Cr 2  F0 F0        
+00007Er 2               
+00007Er 2               PAUSE_SOUND_TIME:
+00007Er 2  05 05 05 05  		.byte $05, $05, $05, $05, $05, $10, $00
+000082r 2  05 10 00     
+000085r 2               
+000085r 2               ; JUMP
+000085r 2               JUMP_SOUND_LOWER:
+000085r 2  C0           	.byte $c0
+000086r 2               
+000086r 2               JUMP_SOUND_UPPER:
+000086r 2  80           	.byte $80
+000087r 2               
+000087r 2               JUMP_SOUND_TIME:
+000087r 2  60 00        	.byte $60, $00
+000089r 2               
+000089r 2               
+000089r 2               ; ADDR ARRAY
+000089r 2               
+000089r 2               SOUND_ADDR_LOWER:
+000089r 2  rr rr        		.word PAUSE_SOUND_LOWER			; 1
+00008Br 2  rr rr        		.word JUMP_SOUND_LOWER
+00008Dr 2               
+00008Dr 2               SOUND_ADDR_UPPER:
+00008Dr 2  rr rr        		.word PAUSE_SOUND_UPPER			; 1
+00008Fr 2  rr rr        		.word JUMP_SOUND_UPPER
+000091r 2               
+000091r 2               SOUND_TIME:
+000091r 2  rr rr        		.word PAUSE_SOUND_TIME			; 1
+000093r 2  rr rr        		.word JUMP_SOUND_TIME
+000095r 2               
+000095r 1               
+000095r 1               .include "./asm/macro.asm"				; マクロ
+000095r 2               ; ------------------------------------------------------------------------------
+000095r 2               ; キャリーなし加算、減算
+000095r 2               ; 引数：足し引きする値
+000095r 2               ; ------------------------------------------------------------------------------
+000095r 2               
+000095r 2               .macro add VAL
+000095r 2               		clc
+000095r 2               		adc VAL
+000095r 2               .endmacro
+000095r 2               
+000095r 2               .macro sub VAL
+000095r 2               		sec
+000095r 2               		sbc VAL
+000095r 2               .endmacro
+000095r 2               
+000095r 2               
+000095r 2               ; ------------------------------------------------------------------------------
+000095r 2               ; ロード命令拡張マクロ
+000095r 2               ; lda + arr
+000095r 2               ; 引数：読み込む配列ARRのアドレス、ARR[x][y]になるX、Yレジスタ
+000095r 2               ; Aレジスタ破壊
+000095r 2               ; 戻り値：Aレジスタ
+000095r 2               ; ------------------------------------------------------------------------------
+000095r 2               
+000095r 2               .scope MACRO_TMP
+000095r 2               		tmp1 = $d0
+000095r 2               .endscope
+000095r 2               
+000095r 2               .macro ldarr ADDR
+000095r 2               		sty MACRO_TMP::tmp1				; 破壊するので
+000095r 2               		txa
+000095r 2               		asl								; *2（アドレスが16bitなのでARR[x][y]のxが+1 => 読み込むアドレスは+2する必要がある
+000095r 2               		tay								; アドレッシングに使うためYレジスタへ
+000095r 2               		lda ADDR, y
+000095r 2               		sta addr_lower
+000095r 2               		lda ADDR+1, y
+000095r 2               		sta addr_upper
+000095r 2               		ldy MACRO_TMP::tmp1
+000095r 2               		lda (addr_lower), y
+000095r 2               .endmacro
+000095r 2               
+000095r 2               
+000095r 2               ; ------------------------------------------------------------------------------
+000095r 2               ; RAM初期化
+000095r 2               ; initialize RAM
+000095r 2               ; 引数：初期化開始アドレス、初期化する値
+000095r 2               ; A, Xレジスタ破壊
+000095r 2               ; 戻り値なし
+000095r 2               ; ------------------------------------------------------------------------------
+000095r 2               
+000095r 2               .macro inirm ADDR, VAL
+000095r 2               		lda VAL
+000095r 2               		ldx #$00
+000095r 2               :
+000095r 2               		sta ADDR, x
+000095r 2               		dex
+000095r 2               		bne :-
+000095r 2               .endmacro
+000095r 2               
+000095r 2               
+000095r 2               ; ------------------------------------------------------------------------------
+000095r 2               ; VRAM初期化
+000095r 2               ; initialize VRAM
+000095r 2               ; 引数：初期化する値
+000095r 2               ; A, X, Yレジスタ破壊
+000095r 2               ; 戻り値なし
+000095r 2               ; ------------------------------------------------------------------------------
+000095r 2               
+000095r 2               .macro inivrm VAL
+000095r 2               		lda #$20
+000095r 2               		sta PPU_ADDRESS
+000095r 2               		lda #$00
+000095r 2               		sta PPU_ADDRESS
+000095r 2               		lda VAL
+000095r 2               		ldx #$00
+000095r 2               		ldy #$08
+000095r 2               :
+000095r 2               :
+000095r 2               		sta PPU_ACCESS
+000095r 2               		dex
+000095r 2               		bne :-
+000095r 2               		dey
+000095r 2               		bne :--
+000095r 2               .endmacro
+000095r 2               
+000095r 2               
+000095r 2               ; ------------------------------------------------------------------------------
+000095r 2               ; 負の数（2の補数）を求める
+000095r 2               ; Calculate Negative Numbers
+000095r 2               ; 引数なし
+000095r 2               ; Aレジスタ破壊
+000095r 2               ; 戻り値なし
+000095r 2               ; ------------------------------------------------------------------------------
+000095r 2               
+000095r 2               .macro cnn
+000095r 2               		eor #$ff
+000095r 2               		add #$01
+000095r 2               .endmacro
+000095r 2               
+000095r 2               
+000095r 2               ; ------------------------------------------------------------------------------
+000095r 2               ; 上位4ビットを下位に持ってくる
+000095r 2               ; ------------------------------------------------------------------------------
+000095r 2               
+000095r 2               .macro rsft4
+000095r 2               		lsr
+000095r 2               		lsr
+000095r 2               		lsr
+000095r 2               		lsr
+000095r 2               .endmacro
+000095r 2               
+000095r 2               
+000095r 2               ; ------------------------------------------------------------------------------
+000095r 2               ; 下位4bitを下位に持ってくる
+000095r 2               ; ------------------------------------------------------------------------------
+000095r 2               
+000095r 2               .macro lsft4
+000095r 2               		asl
+000095r 2               		asl
+000095r 2               		asl
+000095r 2               		asl
+000095r 2               .endmacro
+000095r 2               
+000095r 2               
+000095r 2               ; ------------------------------------------------------------------------------
+000095r 2               ; X, Yレジスタの加算、減算
+000095r 2               ; 引数：足し引きする値
+000095r 2               ; ------------------------------------------------------------------------------
+000095r 2               
+000095r 2               ; .macro adcx VAL
+000095r 2               ; 		pha
+000095r 2               ; 		txa
+000095r 2               ; 		adc VAL
+000095r 2               ; 		tax
+000095r 2               ; 		pla
+000095r 2               ; .endmacro
+000095r 2               
+000095r 2               ; .macro addx VAL
+000095r 2               ; 		pha
+000095r 2               ; 		txa
+000095r 2               ; 		add VAL
+000095r 2               ; 		tax
+000095r 2               ; 		pla
+000095r 2               ; .endmacro
+000095r 2               
+000095r 2               ; .macro adcy VAL
+000095r 2               ; 		pha
+000095r 2               ; 		tya
+000095r 2               ; 		adc VAL
+000095r 2               ; 		tay
+000095r 2               ; 		pla
+000095r 2               ; .endmacro
+000095r 2               
+000095r 2               ; .macro addy VAL
+000095r 2               ; 		pha
+000095r 2               ; 		tya
+000095r 2               ; 		add VAL
+000095r 2               ; 		tay
+000095r 2               ; 		pla
+000095r 2               ; .endmacro
+000095r 2               
+000095r 2               ; .macro sbcx VAL
+000095r 2               ; 		pha
+000095r 2               ; 		txa
+000095r 2               ; 		sbc VAL
+000095r 2               ; 		tax
+000095r 2               ; 		pla
+000095r 2               ; .endmacro
+000095r 2               
+000095r 2               ; .macro subx VAL
+000095r 2               ; 		pha
+000095r 2               ; 		txa
+000095r 2               ; 		sub VAL
+000095r 2               ; 		tax
+000095r 2               ; 		pla
+000095r 2               ; .endmacro
+000095r 2               
+000095r 2               ; .macro sbcy VAL
+000095r 2               ; 		pha
+000095r 2               ; 		tya
+000095r 2               ; 		sbc VAL
+000095r 2               ; 		tay
+000095r 2               ; 		pla
+000095r 2               ; .endmacro
+000095r 2               
+000095r 2               ; .macro suby VAL
+000095r 2               ; 		pha
+000095r 2               ; 		tya
+000095r 2               ; 		sub VAL
+000095r 2               ; 		tay
+000095r 2               ; 		pla
+000095r 2               ; .endmacro
+000095r 2               
+000095r 1               .include "./asm/main.asm"				; メインルーチン
+000095r 2               ; ------------------------------------------------------------------------------
+000095r 2               ; メイン処理
+000095r 2               ; ------------------------------------------------------------------------------
+000095r 2               
+000095r 2               S_MAIN:
+000095r 2  A9 88        		lda #%10001000					; ステータス表示のためスクロールリセット
+000097r 2  8D 00 20     		sta PPU_SET1
+00009Ar 2  A9 00        		lda #$00
+00009Cr 2  8D 05 20     		sta PPU_SCROLL
+00009Fr 2  8D 05 20     		sta PPU_SCROLL
+0000A2r 2               
+0000A2r 2  A5 44        		lda sound_ch1_num
+0000A4r 2  29 01        		and #%00000001
+0000A6r 2  85 48        		sta cannot_control
+0000A8r 2               
+0000A8r 2  20 rr rr     		jsr S_GET_CON					; コントローラー取得
+0000ABr 2  A5 09        		lda con_player1_pushstart
+0000ADr 2  29 10        		and #CON_START
+0000AFr 2  F0 12        		beq @SKIP_TOGGLE_PAUSE
+0000B1r 2  A5 43        		lda pause_flag
+0000B3r 2  49 01        		eor #$01
+0000B5r 2  85 43        		sta pause_flag
+0000B7r 2  A9 01        		lda #$01
+0000B9r 2  85 44        		sta sound_ch1_num
+0000BBr 2               
+0000BBr 2  A5 44        		lda sound_ch1_num
+0000BDr 2  29 01        		and #%00000001
+0000BFr 2  85 48        		sta cannot_control
+0000C1r 2               
+0000C1r 2  D0 0B        		bne @WAIT_SPR0_HIT
+0000C3r 2               
+0000C3r 2               @SKIP_TOGGLE_PAUSE:
+0000C3r 2  A5 43        		lda pause_flag
+0000C5r 2  05 48        		ora cannot_control
+0000C7r 2  D0 05        		bne @WAIT_SPR0_HIT				; ポーズ中スキップ
+0000C9r 2               
+0000C9r 2               		; ポーズがかかってないとき、0爆弾待ち中の動作
+0000C9r 2  20 rr rr     		jsr S_DEC_TIME
+0000CCr 2  E6 E0        		inc $e0
+0000CEr 2               
+0000CEr 2               @WAIT_SPR0_HIT:
+0000CEr 2  2C 02 20     		bit PPU_STATUS
+0000D1r 2  50 FB        		bvc @WAIT_SPR0_HIT				; 0爆弾待ち
+0000D3r 2  20 rr rr     		jsr S_SET_SCROLL
+0000D6r 2               
+0000D6r 2  A5 43        		lda pause_flag
+0000D8r 2  05 48        		ora cannot_control
+0000DAr 2  D0 03        		bne @PAUSING_SKIP
+0000DCr 2               
+0000DCr 2               		; ポーズがかかっていないときの動作
+0000DCr 2               		;lda con_player1				; 多段ジャンプの実装
+0000DCr 2               		;and #CON_A
+0000DCr 2               		;bne @SKIP_UPDATE_FLY_FLUG
+0000DCr 2               		; lda #$00
+0000DCr 2               		;sta mario_isfly
+0000DCr 2               @SKIP_UPDATE_FLY_FLUG:
+0000DCr 2  20 rr rr     		jsr S_MOVE_PLAYER				; プレイヤー移動
+0000DFr 2               
+0000DFr 2               @PAUSING_SKIP:
+0000DFr 2  20 rr rr     		jsr S_SOUND
+0000E2r 2               
+0000E2r 2  A5 30        		lda ver_speed
+0000E4r 2  05 37        		ora mario_isfly
+0000E6r 2  29 7F        		and #%01111111
+0000E8r 2  F0 02        		beq @SKIP1
+0000EAr 2  A9 01        		lda #$01
+0000ECr 2               @SKIP1:
+0000ECr 2  85 37        		sta mario_isfly
+0000EEr 2               
+0000EEr 2  A9 01        		lda #$01
+0000F0r 2  85 F2        		sta isend_main					; フラグを立てる
+0000F2r 2               
+0000F2r 2  60           		rts  ; -------------------------
+0000F3r 2               
+0000F3r 1               .include "./asm/sub.asm"				; その他サブルーチン
+0000F3r 2               ; ------------------------------------------------------------------------------
+0000F3r 2               ; コントローラー取得
+0000F3r 2               ; 引数無し
+0000F3r 2               ; A, Xレジスタ破壊
+0000F3r 2               ; 戻り値なし
+0000F3r 2               ; ------------------------------------------------------------------------------
+0000F3r 2               
+0000F3r 2               S_GET_CON:
+0000F3r 2  A5 07        		lda con_player1					; 更新する前のコントローラーの状態を保存
+0000F5r 2  85 08        		sta con_player1_prev
+0000F7r 2  A5 0A        		lda con_player2
+0000F9r 2  85 0B        		sta con_player2_prev
+0000FBr 2               
+0000FBr 2  A2 01        		ldx #$01						; コントローラー初期化
+0000FDr 2  8E 16 40     		stx CON1_PORT
+000100r 2  CA           		dex
+000101r 2  8E 16 40     		stx CON1_PORT
+000104r 2               
+000104r 2  A2 08        		ldx #$08
+000106r 2               @GET_CON1_PORT:
+000106r 2  AD 16 40     		lda CON1_PORT
+000109r 2  29 03        		and #%00000011
+00010Br 2  C9 01        		cmp #$01						; A + 0xFF, Aレジスタが1のときキャリーが発生
+00010Dr 2  26 07        		rol con_player1
+00010Fr 2  CA           		dex
+000110r 2  D0 F4        		bne @GET_CON1_PORT
+000112r 2               
+000112r 2  A2 08        		ldx #$08
+000114r 2               @GET_CON2_PORT:
+000114r 2  AD 17 40     		lda CON2_PORT
+000117r 2  29 03        		and #%00000011
+000119r 2  C9 01        		cmp #$01						; A + 0xFF, Aレジスタが1のときキャリーが発生
+00011Br 2  26 0A        		rol con_player2
+00011Dr 2  CA           		dex
+00011Er 2  D0 F4        		bne @GET_CON2_PORT
+000120r 2               
+000120r 2  A5 08        		lda con_player1_prev
+000122r 2  49 FF        		eor #$ff
+000124r 2  25 07        		and con_player1
+000126r 2  85 09        		sta con_player1_pushstart
+000128r 2               
+000128r 2  A5 0B        		lda con_player2_prev
+00012Ar 2  49 FF        		eor #$ff
+00012Cr 2  25 0A        		and con_player2
+00012Er 2  85 0C        		sta con_player2_pushstart
+000130r 2               
+000130r 2  60           		rts  ; -------------------------
+000131r 2               
+000131r 2               
+000131r 2               ; ------------------------------------------------------------------------------
+000131r 2               ; スクロール座標変更、マップ描画
+000131r 2               ; 引数：Aレジスタ（スクロールするピクセル数）
+000131r 2               ; A, Xレジスタ破壊
+000131r 2               ; 戻り値なし
+000131r 2               ; ------------------------------------------------------------------------------
+000131r 2               
+000131r 2               S_SCROLL_MAP:
+000131r 2               		; 座標変更
+000131r 2  18 65 12     		add map_scroll					; スクロール座標
+000134r 2  85 12        		sta map_scroll
+000136r 2               		; マップの更新
+000136r 2  29 0F        		and #%00001111					; 上位4ビットをマスク
+000138r 2  C5 28        		cmp mario_pixel_speed
+00013Ar 2  10 09        		bpl @SKIP_UPDATE_MAP
+00013Cr 2  20 rr rr     		jsr S_DRAW_ADDMAP				; マップを一列更新
+00013Fr 2  20 rr rr     		jsr S_TRANSFAR_OBJDATA_TOBUFFER
+000142r 2  20 rr rr     		jsr S_TRANSFAR_PLT_TOBUFFER
+000145r 2               @SKIP_UPDATE_MAP:
+000145r 2  A5 13        		lda map_scroll_prev				; メインとなる画面の選択
+000147r 2  10 0C        		bpl @SKIP_CHANGE_MAINDISP
+000149r 2  A5 12        		lda map_scroll
+00014Br 2  30 08        		bmi @SKIP_CHANGE_MAINDISP
+00014Dr 2  A6 11        		ldx main_disp
+00014Fr 2  E8           		inx
+000150r 2  8A           		txa
+000151r 2  29 01        		and #$01
+000153r 2  85 11        		sta main_disp
+000155r 2               @SKIP_CHANGE_MAINDISP:
+000155r 2  A5 12        		lda map_scroll
+000157r 2  85 13        		sta map_scroll_prev
+000159r 2  60           		rts  ; -------------------------
+00015Ar 2               
+00015Ar 2               
+00015Ar 2               ; ------------------------------------------------------------------------------
+00015Ar 2               ; スクロール位置のセット
+00015Ar 2               ; NMI後などに使用
+00015Ar 2               ; 引数無し（スクロール位置を変更するならMAP_SCROLLにストアしておく）
+00015Ar 2               ; Aレジスタ破壊
+00015Ar 2               ; 戻り値無し
+00015Ar 2               ; ------------------------------------------------------------------------------
+00015Ar 2               
+00015Ar 2               S_SET_SCROLL:
+00015Ar 2  A5 11        		lda main_disp					; メイン画面セット
+00015Cr 2  09 88        		ora #%10001000
+00015Er 2  8D 00 20     		sta PPU_SET1
+000161r 2               
+000161r 2  A5 12        		lda map_scroll					; スクロール座標セット
+000163r 2  8D 05 20     		sta PPU_SCROLL
+000166r 2  A9 00        		lda #$00
+000168r 2  8D 05 20     		sta PPU_SCROLL
+00016Br 2  60           		rts  ; -------------------------
+00016Cr 2               
+00016Cr 1               .include "./asm/move_chr.asm"			; マリオ移動
+00016Cr 2               ; ------------------------------------------------------------------------------
+00016Cr 2               ; マリオ移動
+00016Cr 2               ; 左右移動
+00016Cr 2               ; 引数無し
+00016Cr 2               ; A, Xレジスタ破壊
+00016Cr 2               ; 戻り値無し
+00016Cr 2               ; ------------------------------------------------------------------------------
+00016Cr 2               
+00016Cr 2               S_MOVE_PLAYER:
+00016Cr 2               		; 右方向速度
+00016Cr 2  A9 01        		lda #CON_R
+00016Er 2  85 23        		sta check_con_btn
+000170r 2  A5 21        		lda mario_speed_R
+000172r 2  85 22        		sta mario_speed_tmp
+000174r 2  20 rr rr     		jsr S_GET_SPEED_L_OR_R
+000177r 2  A5 22        		lda mario_speed_tmp
+000179r 2  85 21        		sta mario_speed_R
+00017Br 2               
+00017Br 2               		; 左方向速度
+00017Br 2  A9 02        		lda #CON_L
+00017Dr 2  85 23        		sta check_con_btn
+00017Fr 2  A5 20        		lda mario_speed_L
+000181r 2  85 22        		sta mario_speed_tmp
+000183r 2  20 rr rr     		jsr S_GET_SPEED_L_OR_R
+000186r 2  A5 22        		lda mario_speed_tmp
+000188r 2  85 20        		sta mario_speed_L
+00018Ar 2               
+00018Ar 2               		; 左右の速度からX方向の速度等を出す
+00018Ar 2  20 rr rr     		jsr S_CALC_SPEED_X
+00018Dr 2               
+00018Dr 2               		; 縦方向速度
+00018Dr 2  20 rr rr     		jsr S_GET_SPEED_Y
+000190r 2               
+000190r 2  20 rr rr     		jsr S_CHECK_COLLISION
+000193r 2               
+000193r 2               	;jsr S_STORE_AMOUNT_X
+000193r 2               
+000193r 2  20 rr rr     		jsr S_STORE_MARIO
+000196r 2               
+000196r 2  60           		rts  ; -------------------------
+000197r 2               
+000197r 1               .include "./asm/move_chr_x.asm"			; マリオX方向移動
+000197r 2               ; ------------------------------------------------------------------------------
+000197r 2               ; マリオX座標移動
+000197r 2               ; 事前にメモリーに必要な値をストアして左右それぞれのスピードを出せる
+000197r 2               ; 引数無し（チェックするコントローラーの方向と変更するスピードをメモリーにストア）
+000197r 2               ; A, Xレジスタ破壊
+000197r 2               ; 戻り値無し
+000197r 2               ; ------------------------------------------------------------------------------
+000197r 2               
+000197r 2               S_GET_SPEED_L_OR_R:
+000197r 2  A5 09        		lda con_player1_pushstart
+000199r 2  25 23        		and check_con_btn
+00019Br 2  F0 12        		beq @SKIP1						; ボタンが初めて押されたとき以外スキップ
+00019Dr 2  A5 22        		lda mario_speed_tmp
+00019Fr 2  D0 0E        		bne @SKIP1						; 進む方向のスピードが0でないときスキップ
+0001A1r 2  A5 28        		lda mario_pixel_speed
+0001A3r 2  D0 06        		bne @BRAKE						; スピードが0でないときスキップ
+0001A5r 2  A9 05        		lda #MARIO_FIRST_SPEED
+0001A7r 2  85 22        		sta mario_speed_tmp				; 走り始めの速度
+0001A9r 2  D0 04        		bne @SKIP1						; 強制ジャンプ
+0001ABr 2               @BRAKE:
+0001ABr 2  A9 01        		lda #$01						; 2方向に動き始めたとき、速度を0でなくする
+0001ADr 2  85 22        		sta mario_speed_tmp
+0001AFr 2               @SKIP1:
+0001AFr 2  A5 22        		lda mario_speed_tmp
+0001B1r 2  D0 01        		bne @SKIP2						; スピード0のとき終了
+0001B3r 2  60           		rts  ; -------------------------
+0001B4r 2               @SKIP2:
+0001B4r 2  A5 07        		lda con_player1
+0001B6r 2  25 23        		and check_con_btn
+0001B8r 2  D0 0C        		bne @SKIP3
+0001BAr 2  A6 22        		ldx mario_speed_tmp				; ボタンが押されてないとき速度下降（0まで）
+0001BCr 2  CA           		dex
+0001BDr 2  E0 10        		cpx #$10
+0001BFr 2  10 02        		bpl @STORE_SPEED_DOWN
+0001C1r 2  A2 00        		ldx #$00						; 速度が0より小さい時速度を0に
+0001C3r 2               @STORE_SPEED_DOWN:
+0001C3r 2  86 22        		stx mario_speed_tmp
+0001C5r 2  60           		rts  ; -------------------------
+0001C6r 2               @SKIP3:									; 右ボタン押されていて速度あり
+0001C6r 2  A5 37        		lda mario_isfly
+0001C8r 2  F0 0F        		beq @ADD_SPEED
+0001CAr 2  A5 23        		lda check_con_btn				; 下位がLRの順
+0001CCr 2  29 01        		and #%00000001
+0001CEr 2  C5 25        		cmp mario_x_direction
+0001D0r 2  F0 07        		beq @ADD_SPEED					; 方向が同じときスキップ
+0001D2r 2  A5 F1        		lda frame_counter
+0001D4r 2  29 03        		and #%00000011
+0001D6r 2  F0 01        		beq @ADD_SPEED
+0001D8r 2  60           		rts  ; -------------------------
+0001D9r 2               @ADD_SPEED:
+0001D9r 2  A5 07        		lda con_player1
+0001DBr 2  29 40        		and #CON_B
+0001DDr 2  F0 0E        		beq @WALK
+0001DFr 2  A5 22        		lda mario_speed_tmp				; ダッシュ
+0001E1r 2  18 69 02     		add #MARIO_DASH_INCSPEED
+0001E4r 2  C9 28        		cmp #MARIO_DASH_MAXSPEED
+0001E6r 2  30 02        		bmi @STORE_SPEED_DASH
+0001E8r 2  A9 28        		lda #MARIO_DASH_MAXSPEED		; ダッシュ速度で維持
+0001EAr 2               @STORE_SPEED_DASH:
+0001EAr 2  85 22        		sta mario_speed_tmp
+0001ECr 2  60           		rts  ; -------------------------
+0001EDr 2               @WALK:									; 歩き
+0001EDr 2  A5 22        		lda mario_speed_tmp
+0001EFr 2  C9 1C        		cmp #MARIO_WALK_MAXSPEED
+0001F1r 2  10 1A        		bpl @WALK_SPEED_DOWN
+0001F3r 2  18 69 01     		add #MARIO_WALK_INCSPEED
+0001F6r 2  C9 16        		cmp #$16
+0001F8r 2  10 0A        		bpl @SKIP_SLOW_SPEED
+0001FAr 2  48           		pha
+0001FBr 2  A5 F1        		lda frame_counter
+0001FDr 2  29 00        		and #%00000000					; 速度が小さいときの調整
+0001FFr 2  F0 02        		beq @PLA_SPEED
+000201r 2  68           		pla
+000202r 2  60           		rts  ; -------------------------
+000203r 2               @PLA_SPEED:
+000203r 2  68           		pla
+000204r 2               @SKIP_SLOW_SPEED:
+000204r 2  C9 1C        		cmp #MARIO_WALK_MAXSPEED
+000206r 2  30 02        		bmi @STORE_SPEED_UP_WALK
+000208r 2  A9 1C        		lda #MARIO_WALK_MAXSPEED		; 歩き速度で維持
+00020Ar 2               @STORE_SPEED_UP_WALK:
+00020Ar 2  85 22        		sta mario_speed_tmp
+00020Cr 2  60           		rts  ; -------------------------
+00020Dr 2               @WALK_SPEED_DOWN:						; 歩きになってダッシュから速度を減少させる
+00020Dr 2  38           		sec
+00020Er 2  E9 01        		sbc #MARIO_WALK_INCSPEED
+000210r 2  C9 1C        		cmp #MARIO_WALK_MAXSPEED
+000212r 2  10 02        		bpl @STORE_SPEED_DOWN_WALK
+000214r 2  A9 1C        		lda #MARIO_WALK_MAXSPEED		; 歩き速度で維持
+000216r 2               @STORE_SPEED_DOWN_WALK:
+000216r 2  85 22        		sta mario_speed_tmp
+000218r 2  60           		rts  ; -------------------------
+000219r 2               
+000219r 2               
+000219r 2               ; ------------------------------------------------------------------------------
+000219r 2               ; 左右それぞれのスピードから速度を出し、ブレーキや向きフラグをセット
+000219r 2               ; 引数無し
+000219r 2               ; A, Xレジスタ破壊
+000219r 2               ; 戻り値無し
+000219r 2               ; ------------------------------------------------------------------------------
+000219r 2               
+000219r 2               S_CALC_SPEED_X:
+000219r 2  A2 00        		ldx #$00						; 値セット用
+00021Br 2  A5 20        		lda mario_speed_L
+00021Dr 2  D0 0D        		bne @SPEED_L_NOT0
+00021Fr 2  A5 21        		lda mario_speed_R
+000221r 2  D0 19        		bne @SPEED_L0_R_NOT0
+000223r 2  86 27        		stx mario_subpixel_speed		; 左 = 0、右 = 0
+000225r 2  86 28        		stx mario_pixel_speed
+000227r 2  86 29        		stx mario_speed_remainder
+000229r 2  86 24        		stx brake
+00022Br 2  60           		rts  ; -------------------------
+00022Cr 2               @SPEED_L_NOT0:							; 左速度あり
+00022Cr 2  A5 21        		lda mario_speed_R
+00022Er 2  D0 19        		bne @SPEED_LR_NOT0
+000230r 2  20 rr rr     		jsr S_STORE_PIXEL_SPEED			; 左 ≠ 0、右 = 0
+000233r 2  86 25        		stx mario_x_direction
+000235r 2  86 26        		stx mario_face_direction
+000237r 2  86 24        		stx brake
+000239r 2  86 3D        		stx flagA
+00023Br 2  60           		rts  ; -------------------------
+00023Cr 2               @SPEED_L0_R_NOT0:						; 左 = 0、右 ≠ 0
+00023Cr 2  20 rr rr     		jsr S_STORE_PIXEL_SPEED
+00023Fr 2  86 24        		stx brake
+000241r 2  86 3D        		stx flagA
+000243r 2  E8           		inx
+000244r 2  86 25        		stx mario_x_direction
+000246r 2  86 26        		stx mario_face_direction
+000248r 2  60           		rts  ; -------------------------
+000249r 2               @SPEED_LR_NOT0:							; 左 ≠ 0、右 ≠ 0
+000249r 2  A5 3D        		lda flagA
+00024Br 2  C9 02        		cmp #$02
+00024Dr 2  F0 0A        		beq @SKIP_SET_FLAG
+00024Fr 2  A9 01        		lda #$01
+000251r 2  85 3D        		sta flagA
+000253r 2  A5 25        		lda mario_x_direction
+000255r 2  49 01        		eor #%00000001
+000257r 2  85 26        		sta mario_face_direction
+000259r 2               @SKIP_SET_FLAG:
+000259r 2  A5 20        		lda mario_speed_L
+00025Br 2  C5 21        		cmp mario_speed_R
+00025Dr 2  F0 1A        		beq @SPEED_L_EQUAL_R
+00025Fr 2  30 29        		bmi @SPEED_BIGGER_R
+000261r 2  86 25        		stx mario_x_direction			; 左 > 右
+000263r 2  20 rr rr     		jsr S_STORE_PIXEL_SPEED
+000266r 2  A5 26        		lda mario_face_direction
+000268r 2  F0 08        		beq @SPEED_BIGGER_L_FACE_L
+00026Ar 2  E8           		inx
+00026Br 2  86 24        		stx brake						; ブレーキON
+00026Dr 2  A9 10        		lda #$10
+00026Fr 2  85 21        		sta mario_speed_R				; ブレーキの時
+000271r 2  60           		rts  ; -------------------------
+000272r 2               @SPEED_BIGGER_L_FACE_L:
+000272r 2  86 24        		stx brake						; ブレーキOFF
+000274r 2  A9 02        		lda #$02
+000276r 2  85 3D        		sta flagA
+000278r 2  60           		rts  ; -------------------------
+000279r 2               @SPEED_L_EQUAL_R:						; 左 = 右
+000279r 2  86 24        		stx brake
+00027Br 2  A9 02        		lda #$02
+00027Dr 2  85 3D        		sta flagA
+00027Fr 2  A5 26        		lda mario_face_direction
+000281r 2  F0 04        		beq @SPEED_L_EQUAL_R_FACE_L
+000283r 2  E8           		inx
+000284r 2  86 25        		stx mario_x_direction
+000286r 2  60           		rts  ; -------------------------
+000287r 2               @SPEED_L_EQUAL_R_FACE_L:
+000287r 2  86 25        		stx mario_x_direction
+000289r 2  60           		rts  ; -------------------------
+00028Ar 2               @SPEED_BIGGER_R:						; 左 < 右
+00028Ar 2  E8           		inx
+00028Br 2  86 25        		stx mario_x_direction
+00028Dr 2  20 rr rr     		jsr S_STORE_PIXEL_SPEED
+000290r 2  A5 26        		lda mario_face_direction
+000292r 2  F0 08        		beq @SPEED_BIGGER_R_FACE_L
+000294r 2  CA           		dex
+000295r 2  86 24        		stx brake						; ブレーキOFF
+000297r 2  A9 02        		lda #$02
+000299r 2  85 3D        		sta flagA
+00029Br 2  60           		rts  ; -------------------------
+00029Cr 2               @SPEED_BIGGER_R_FACE_L:
+00029Cr 2  86 24        		stx brake						; ブレーキoN
+00029Er 2  A9 10        		lda #$10
+0002A0r 2  85 20        		sta mario_speed_L
+0002A2r 2  60           		rts  ; -------------------------
+0002A3r 2               
+0002A3r 2               
+0002A3r 2               ; ------------------------------------------------------------------------------
+0002A3r 2               ; サブピクセル、ピクセルの移動スピードをストアする
+0002A3r 2               ; 引数無し
+0002A3r 2               ; Aレジスタ破壊
+0002A3r 2               ; 戻り値無し
+0002A3r 2               ; ------------------------------------------------------------------------------
+0002A3r 2               
+0002A3r 2               S_STORE_PIXEL_SPEED:
+0002A3r 2  A5 20        		lda mario_speed_L
+0002A5r 2  38           		sec
+0002A6r 2  E5 21        		sbc mario_speed_R
+0002A8r 2  10 05        		bpl @SKIP1
+0002AAr 2  49 FF 18 69  		cnn
+0002AEr 2  01           
+0002AFr 2               @SKIP1:
+0002AFr 2  18 65 29     		add mario_speed_remainder
+0002B2r 2  85 27        		sta mario_subpixel_speed
+0002B4r 2  29 0F        		and #%00001111
+0002B6r 2  85 29        		sta mario_speed_remainder
+0002B8r 2  A5 27        		lda mario_subpixel_speed
+0002BAr 2  29 F0        		and #%11110000
+0002BCr 2  4A 4A 4A 4A  		rsft4
+0002C0r 2  85 28        		sta mario_pixel_speed
+0002C2r 2  60           		rts  ; -------------------------
+0002C3r 2               
+0002C3r 1               .include "./asm/move_chr_y.asm"			; マリオY方向移動
+0002C3r 2               ; ------------------------------------------------------------------------------
+0002C3r 2               ; 上昇速度を出す
+0002C3r 2               ; ------------------------------------------------------------------------------
+0002C3r 2               
+0002C3r 2               S_GET_SPEED_Y:
+0002C3r 2  20 rr rr     		jsr JUMP_CHECK
+0002C6r 2  20 rr rr     		jsr MOVE_PROCESS
+0002C9r 2  60           		rts  ; -------------------------
+0002CAr 2               
+0002CAr 2               
+0002CAr 2               S_RESET_PARAM_JUMP:
+0002CAr 2               		; lda #$00
+0002CAr 2               		; sta ver_speed
+0002CAr 2               		; sta ver_force_decimal_part
+0002CAr 2               		; sta ver_force_fall
+0002CAr 2               		; sta ver_speed_decimal_part
+0002CAr 2               		; sta ver_pos_decimal_part
+0002CAr 2               		; sta mario_isfly
+0002CAr 2               		; stx mario_posy
+0002CAr 2               
+0002CAr 2  AD rr rr     		lda VER_FORCE_DECIMAL_PART_DATA
+0002CDr 2  85 31        		sta ver_force_decimal_part
+0002CFr 2  AD rr rr     		lda VER_FALL_FORCE_DATA
+0002D2r 2  85 32        		sta ver_force_fall
+0002D4r 2  60           		rts  ; -------------------------
+0002D5r 2               
+0002D5r 2               
+0002D5r 2               ; ------------------------------------------------------------------------------
+0002D5r 2               ; ------------------------------------------------------------------------------
+0002D5r 2               ; 引数なし（変更）
+0002D5r 2               JUMP_CHECK:
+0002D5r 2  A5 09        		lda con_player1_pushstart
+0002D7r 2  29 80        		and #CON_A
+0002D9r 2  D0 01        		bne @SKIP1
+0002DBr 2               		; 初めてジャンプボタンが押されてないとき終了
+0002DBr 2  60           		rts  ; -------------------------
+0002DCr 2               @SKIP1:
+0002DCr 2  A5 37        		lda mario_isfly
+0002DEr 2  D0 03        		bne @SKIP2
+0002E0r 2               		; 地面にいるときジャンプ開始準備
+0002E0r 2  20 rr rr     		jsr PREPARING_JUMP
+0002E3r 2               @SKIP2:
+0002E3r 2  60           		rts  ; -------------------------
+0002E4r 2               
+0002E4r 2               
+0002E4r 2               ; ------------------------------------------------------------------------------
+0002E4r 2               ; ------------------------------------------------------------------------------
+0002E4r 2               
+0002E4r 2               PREPARING_JUMP:
+0002E4r 2  A2 01        		ldx #$01
+0002E6r 2  86 37        		stx mario_isfly
+0002E8r 2  86 3B        		stx mario_isjump
+0002EAr 2  CA           		dex
+0002EBr 2  86 33        		stx ver_speed_decimal_part
+0002EDr 2  A5 36        		lda mario_posy
+0002EFr 2  85 2E        		sta ver_pos_origin
+0002F1r 2               
+0002F1r 2               		; Xレジスタ = 0（idx）
+0002F1r 2  A5 20        		lda mario_speed_L
+0002F3r 2  38           		sec
+0002F4r 2  E5 21        		sbc mario_speed_R
+0002F6r 2  10 05        		bpl @SKIP5
+0002F8r 2  49 FF 18 69  		cnn
+0002FCr 2  01           
+0002FDr 2               @SKIP5:
+0002FDr 2               		; | L - R | を求めてX方向のスピードの絶対値を求める
+0002FDr 2  C9 1C        		cmp #$1c
+0002FFr 2  30 01        		bmi @SKIP1
+000301r 2  E8           		inx
+000302r 2               @SKIP1:
+000302r 2  C9 19        		cmp #$19
+000304r 2  30 01        		bmi @SKIP2
+000306r 2  E8           		inx
+000307r 2               @SKIP2:
+000307r 2  C9 10        		cmp #$10
+000309r 2  30 01        		bmi @SKIP3
+00030Br 2  E8           		inx
+00030Cr 2               @SKIP3:
+00030Cr 2  C9 09        		cmp #$09
+00030Er 2  30 01        		bmi @SKIP4
+000310r 2  E8           		inx
+000311r 2               @SKIP4:
+000311r 2               
+000311r 2  BD rr rr     		lda VER_FORCE_DECIMAL_PART_DATA, x
+000314r 2  85 31        		sta ver_force_decimal_part
+000316r 2  BD rr rr     		lda VER_FALL_FORCE_DATA, x
+000319r 2  85 32        		sta ver_force_fall
+00031Br 2  BD rr rr     		lda INITIAL_VER_FORCE_DATA, x
+00031Er 2  85 33        		sta ver_speed_decimal_part
+000320r 2  BD rr rr     		lda INITIAL_VER_SPEED_DATA, x
+000323r 2  85 30        		sta ver_speed
+000325r 2               
+000325r 2  60           		rts  ; -------------------------
+000326r 2               
+000326r 2               
+000326r 2               ; ------------------------------------------------------------------------------
+000326r 2               ; ------------------------------------------------------------------------------
+000326r 2               
+000326r 2               ; 引数なし（変更）
+000326r 2               MOVE_PROCESS:
+000326r 2  A5 30        		lda ver_speed
+000328r 2  10 0C        		bpl @SKIP1
+00032Ar 2  A5 07        		lda con_player1
+00032Cr 2  29 80        		and #CON_A
+00032Er 2  D0 0A        		bne @SKIP2
+000330r 2  A5 08        		lda con_player1_prev
+000332r 2  29 80        		and #CON_A
+000334r 2  F0 04        		beq @SKIP2
+000336r 2               @SKIP1:
+000336r 2  A5 32        		lda ver_force_fall
+000338r 2  85 31        		sta ver_force_decimal_part
+00033Ar 2               @SKIP2:
+00033Ar 2  20 rr rr     		jsr PHYSICS
+00033Dr 2  60           		rts  ; -------------------------
+00033Er 2               
+00033Er 2               
+00033Er 2               ; ------------------------------------------------------------------------------
+00033Er 2               ; ------------------------------------------------------------------------------
+00033Er 2               
+00033Er 2               PHYSICS:
+00033Er 2  A2 00        		ldx #$00
+000340r 2  86 4A        		stx ver_pos_fix_val
+000342r 2  A5 34        		lda ver_pos_decimal_part
+000344r 2  18 65 31     		add ver_force_decimal_part
+000347r 2  85 34        		sta ver_pos_decimal_part
+000349r 2  90 05        		bcc @SKIP_OVERFLOW
+00034Br 2               		; オーバーフローしてたら
+00034Br 2  86 34        		stx ver_pos_decimal_part
+00034Dr 2  E8           		inx
+00034Er 2  86 4A        		stx ver_pos_fix_val				; 補正値があったらここで修正
+000350r 2               @SKIP_OVERFLOW:
+000350r 2  A5 33        		lda ver_speed_decimal_part
+000352r 2  18 65 31     		add ver_force_decimal_part
+000355r 2  85 33        		sta ver_speed_decimal_part
+000357r 2  90 1A        		bcc @END_SUB
+000359r 2  A9 00        		lda #$00
+00035Br 2  85 33        		sta ver_speed_decimal_part
+00035Dr 2               
+00035Dr 2  A6 30        		ldx ver_speed
+00035Fr 2  E8           		inx
+000360r 2  E0 04        		cpx #DOWN_SPEED_LIMIT
+000362r 2  30 06        		bmi @STORE_VER_SPEED
+000364r 2               		;lda ver_speed_decimal_part
+000364r 2               		;bpl @STORE_VER_SPEED
+000364r 2  A2 04        		ldx #DOWN_SPEED_LIMIT
+000366r 2  A9 00        		lda #$00
+000368r 2  85 33        		sta ver_speed_decimal_part
+00036Ar 2               @STORE_VER_SPEED:
+00036Ar 2  86 30        		stx ver_speed
+00036Cr 2  8A           		txa								; Xレジスタの値を比較するのでここでフラグを更新
+00036Dr 2  30 04        		bmi @END_SUB
+00036Fr 2  A9 00        		lda #$00
+000371r 2  85 3B        		sta mario_isjump
+000373r 2               
+000373r 2               @END_SUB:
+000373r 2  60           		rts  ; -------------------------
+000374r 2               
+000374r 2               
+000374r 2               
+000374r 2               ; ------------------------------------------------------------------------------
+000374r 2               ; 重力データとか
+000374r 2               ; ------------------------------------------------------------------------------
+000374r 2               
+000374r 2               DOWN_SPEED_LIMIT = $04		; 落下の最高速度
+000374r 2               ; 加速度の増加値
+000374r 2               VER_FORCE_DECIMAL_PART_DATA:
+000374r 2  20 20 1E 28  		.byte $20, $20, $1e, $28, $28
+000378r 2  28           
+000379r 2               ; 降下時の加速度
+000379r 2               VER_FALL_FORCE_DATA:
+000379r 2  70 70 60 90  		.byte $70, $70, $60, $90, $90
+00037Dr 2  90           
+00037Er 2               ; 初速度(v0)
+00037Er 2               INITIAL_VER_SPEED_DATA:
+00037Er 2  FC FC FC FB  		.byte $fc, $fc, $fc, $fb, $fb
+000382r 2  FB           
+000383r 2               ; 初期加速度(a)
+000383r 2               INITIAL_VER_FORCE_DATA:
+000383r 2  00 00 00 00  		.byte $00, $00, $00, $00, $00
+000387r 2  00           
+000388r 2               
+000388r 1               .include "./asm/collision.asm"			; マリオあたり判定
+000388r 2               ; ------------------------------------------------------------------------------
+000388r 2               ; あたり判定
+000388r 2               ; ------------------------------------------------------------------------------
+000388r 2               
+000388r 2               .scope S_CHECK_COLLISION
+000388r 2               	tmp_pos_left			= $d0
+000388r 2               	tmp_pos_right			= $d1
+000388r 2               	tmp_pos_top				= $d2
+000388r 2               	tmp_pos_bottom			= $d3
+000388r 2               	tmp_block_pos_left		= $d4
+000388r 2               	tmp_block_pos_right		= $d5
+000388r 2               	tmp_block_pos_top		= $d6
+000388r 2               	tmp_block_pos_bottom	= $d7
+000388r 2               	width					= $d8
+000388r 2               	height					= $d9
+000388r 2               	move_amount_disp		= $da
+000388r 2               	tmp1					= $db
+000388r 2               	start_x					= $dc
+000388r 2               	start_y					= $dd
+000388r 2               	collision_pos			= $de
+000388r 2               	tmp_fixpos_left			= $d0		; アドレス上のものと使い回し (tmp_pos_XXX == tmp_fixpos_XXX)
+000388r 2               	tmp_fixpos_top			= $d2		; アドレス上のものと使い回し (tmp_pos_XXX == tmp_fixpos_XXX)
+000388r 2               	tmp_block_fixpos_left	= $d4		; アドレス上のものと使い回し (tmp_pos_XXX == tmp_fixpos_XXX)
+000388r 2               	tmp_block_fixpos_top	= $d6		; アドレス上のものと使い回し (tmp_pos_XXX == tmp_fixpos_XXX)
+000388r 2               	tmp_fixpos_right		= $df
+000388r 2               	tmp_fixpos_bottom		= $e0
+000388r 2               	tmp_block_fixpos_right	= $e1
+000388r 2               	tmp_block_fixpos_bottom	= $e2
+000388r 2               .endscope
+000388r 2               
+000388r 2               S_CHECK_COLLISION:
+000388r 2               	; マリオ用データ初期化（仮）
+000388r 2  A9 00        	lda #$00
+00038Ar 2  85 DE        	sta S_CHECK_COLLISION::collision_pos
+00038Cr 2  85 DD        	sta S_CHECK_COLLISION::start_y
+00038Er 2               
+00038Er 2  A9 02        	lda #$02
+000390r 2  85 DC        	sta S_CHECK_COLLISION::start_x
+000392r 2               
+000392r 2  A9 0C        	lda #$0c
+000394r 2  85 D8        	sta S_CHECK_COLLISION::width
+000396r 2               
+000396r 2  A9 10        	lda #$10
+000398r 2  85 D9        	sta S_CHECK_COLLISION::height
+00039Ar 2               
+00039Ar 2               	; ここから処理
+00039Ar 2  20 rr rr     	jsr S_GET_TMP_POS
+00039Dr 2  A5 25        	lda mario_x_direction
+00039Fr 2  D0 06        	bne @R
+0003A1r 2  20 rr rr     	jsr S_GET_ISCOLLISION_L
+0003A4r 2  4C rr rr     	jmp @CHK_Y
+0003A7r 2               @R:
+0003A7r 2  20 rr rr     	jsr S_GET_ISCOLLISION_R
+0003AAr 2               @CHK_Y:
+0003AAr 2  A5 3B        	lda mario_isjump
+0003ACr 2  D0 06        	bne @JUMP
+0003AEr 2  20 rr rr     	jsr S_GET_ISCOLLISION_GROUND
+0003B1r 2  4C rr rr     	jmp @MOVE
+0003B4r 2               @JUMP:
+0003B4r 2  20 rr rr     	jsr S_GET_ISCOLLISION_UP
+0003B7r 2               
+0003B7r 2               @MOVE:
+0003B7r 2  A5 DE        	lda S_CHECK_COLLISION::collision_pos
+0003B9r 2  C9 01        	cmp #%0001
+0003BBr 2  D0 08        	bne @SKIP1
+0003BDr 2  A5 30        	lda ver_speed
+0003BFr 2  C9 01        	cmp #$01
+0003C1r 2  10 6C        	bpl @RIGHT_GROUND_COLLISION
+0003C3r 2  30 5E        	bmi @GROUND_COLLISION
+0003C5r 2               @SKIP1:
+0003C5r 2  C9 02        	cmp #%0010
+0003C7r 2  D0 08        	bne @SKIP2
+0003C9r 2  A5 30        	lda ver_speed
+0003CBr 2  C9 01        	cmp #$01
+0003CDr 2  10 72        	bpl @LEFT_GROUND_COLLISION
+0003CFr 2  30 52        	bmi @GROUND_COLLISION
+0003D1r 2               @SKIP2:
+0003D1r 2  C9 03        	cmp #%0011
+0003D3r 2  F0 4E        	beq @GROUND_COLLISION
+0003D5r 2  C9 04        	cmp #%0100
+0003D7r 2  D0 0A        	bne @SKIP3
+0003D9r 2  A5 D1        	lda S_CHECK_COLLISION::tmp_pos_right
+0003DBr 2  29 0F        	and #%00001111
+0003DDr 2  C9 05        	cmp #$05
+0003DFr 2  10 48        	bpl @UP_COLLISION
+0003E1r 2  30 55        	bmi @RIGHT_UP_COLLISION
+0003E3r 2               @SKIP3:
+0003E3r 2               	;beq @RIGHT_COLLISION
+0003E3r 2  C9 05        	cmp #%0101
+0003E5r 2  F0 30        	beq @RIGHT_COLLISION
+0003E7r 2  C9 06        	cmp #%0110
+0003E9r 2  F0 68        	beq @STEP1_COLLISION				; 右上に上がっていく
+0003EBr 2  C9 07        	cmp #%0111
+0003EDr 2  F0 40        	beq @RIGHT_GROUND_COLLISION
+0003EFr 2  C9 08        	cmp #%1000
+0003F1r 2  D0 0A        	bne @SKIP4
+0003F3r 2  A5 D0        	lda S_CHECK_COLLISION::tmp_pos_left
+0003F5r 2  29 0F        	and #%00001111
+0003F7r 2  C9 0C        	cmp #$0c
+0003F9r 2  10 4F        	bpl @LEFT_UP_COLLISION
+0003FBr 2  30 2C        	bmi @UP_COLLISION
+0003FDr 2               @SKIP4:
+0003FDr 2               	;beq @UP_COLLISION
+0003FDr 2  C9 09        	cmp #%1001
+0003FFr 2  F0 58        	beq @STEP2_COLLISION				; 右上に下がっていく
+000401r 2  C9 0A        	cmp #%1010
+000403r 2  F0 18        	beq @LEFT_COLLISION
+000405r 2  C9 0B        	cmp #%1011
+000407r 2  F0 38        	beq @LEFT_GROUND_COLLISION
+000409r 2  C9 0C        	cmp #%1100
+00040Br 2  F0 1C        	beq @UP_COLLISION
+00040Dr 2  C9 0D        	cmp #%1101
+00040Fr 2  F0 27        	beq @RIGHT_UP_COLLISION
+000411r 2  C9 0E        	cmp #%1110
+000413r 2  F0 35        	beq @LEFT_UP_COLLISION
+000415r 2  D0 48        	bne @END
+000417r 2               
+000417r 2               @RIGHT_COLLISION:
+000417r 2  20 rr rr     	jsr S_FIX_R_COLLISION
+00041Ar 2  4C rr rr     	jmp @END
+00041Dr 2               @LEFT_COLLISION:
+00041Dr 2  20 rr rr     	jsr S_FIX_L_COLLISION
+000420r 2  4C rr rr     	jmp @END
+000423r 2               @GROUND_COLLISION:
+000423r 2  20 rr rr     	jsr S_FIX_GROUND_COLLISION
+000426r 2  4C rr rr     	jmp @END
+000429r 2               @UP_COLLISION:
+000429r 2  20 rr rr     	jsr S_FIX_UP_COLLISION
+00042Cr 2  4C rr rr     	jmp @END
+00042Fr 2               @RIGHT_GROUND_COLLISION:
+00042Fr 2  20 rr rr     	jsr S_FIX_R_COLLISION
+000432r 2  20 rr rr     	jsr S_FIX_GROUND_COLLISION
+000435r 2  4C rr rr     	jmp @END
+000438r 2               @RIGHT_UP_COLLISION:
+000438r 2  20 rr rr     	jsr S_FIX_R_COLLISION
+00043Br 2  20 rr rr     	jsr S_FIX_UP_COLLISION
+00043Er 2  4C rr rr     	jmp @END
+000441r 2               @LEFT_GROUND_COLLISION:
+000441r 2  20 rr rr     	jsr S_FIX_L_COLLISION
+000444r 2  20 rr rr     	jsr S_FIX_GROUND_COLLISION
+000447r 2  4C rr rr     	jmp @END
+00044Ar 2               @LEFT_UP_COLLISION:
+00044Ar 2  20 rr rr     	jsr S_FIX_L_COLLISION
+00044Dr 2  20 rr rr     	jsr S_FIX_UP_COLLISION
+000450r 2  4C rr rr     	jmp @END
+000453r 2               @STEP1_COLLISION:
+000453r 2  A5 25        	lda mario_x_direction				; 階段に乗っているのか下から当たっているのか判定
+000455r 2  D0 D8        	bne @RIGHT_GROUND_COLLISION			; 右から（上から）当たっている
+000457r 2  F0 F1        	beq @LEFT_UP_COLLISION				; 左から（下から）当たっている
+000459r 2               @STEP2_COLLISION:
+000459r 2  A5 25        	lda mario_x_direction				; 階段に乗っているのか下から当たっているのか判定
+00045Br 2  D0 D2        	bne @RIGHT_GROUND_COLLISION			; 右から（下から）当たっている
+00045Dr 2  F0 EB        	beq @LEFT_UP_COLLISION				; 左から（上から）当たっている
+00045Fr 2               
+00045Fr 2               @END:
+00045Fr 2  A5 2A        	lda move_amount_sum
+000461r 2  A6 25        	ldx mario_x_direction
+000463r 2  D0 06        	bne @R2
+000465r 2  38 E5 28     	sub mario_pixel_speed
+000468r 2  18           	clc
+000469r 2  90 03        	bcc @STR_DATA						; 強制ジャンプ
+00046Br 2               @R2:
+00046Br 2  18 65 28     	add mario_pixel_speed
+00046Er 2               @STR_DATA:
+00046Er 2  85 2A        	sta move_amount_sum
+000470r 2  A5 2B        	lda move_amount_disp
+000472r 2  18 69 00     	add #$00
+000475r 2  85 2B        	sta move_amount_disp
+000477r 2  A5 36        	lda mario_posy
+000479r 2  18 65 30     	add ver_speed
+00047Cr 2  18 65 4A     	add ver_pos_fix_val
+00047Fr 2  85 36        	sta mario_posy
+000481r 2               
+000481r 2  60           	rts  ; -----------------------------
+000482r 2               
+000482r 2               ;* -----------------------------------------------------------------------------
+000482r 2               ;* 以下，上下左右当たり判定チェック
+000482r 2               ;* -----------------------------------------------------------------------------
+000482r 2               
+000482r 2               ; ------------------------------------------------------------------------------
+000482r 2               ; 左あたり判定チェック
+000482r 2               ; ------------------------------------------------------------------------------
+000482r 2               
+000482r 2               S_GET_ISCOLLISION_L:
+000482r 2  A6 D4        	ldx S_CHECK_COLLISION::tmp_block_pos_left
+000484r 2  A4 D6        	ldy S_CHECK_COLLISION::tmp_block_pos_top
+000486r 2  20 rr rr     	jsr S_GET_ISBLOCK
+000489r 2  F0 06        	beq @NOCOLLISION_LEFT
+00048Br 2  A9 08        	lda #%1000							; 左上
+00048Dr 2  05 DE        	ora S_CHECK_COLLISION::collision_pos
+00048Fr 2  85 DE        	sta S_CHECK_COLLISION::collision_pos
+000491r 2               @NOCOLLISION_LEFT:
+000491r 2               	; あたり判定の幅が10H以上の大きな敵の時の動作（まだ組んでない）
+000491r 2               	; lda S_CHECK_COLLISION::height
+000491r 2               	; cmp #$11
+000491r 2               	; bpl @SKIP
+000491r 2  A5 D2        	lda S_CHECK_COLLISION::tmp_pos_top
+000493r 2  29 F0        	and #%11110000
+000495r 2  10 04        	bpl @SKIP1							; 00以上スキップ
+000497r 2  C9 E0        	cmp #$e0
+000499r 2  10 13        	bpl @NOCOLLISION					; 00未満e0以上のときに衝突なし
+00049Br 2               @SKIP1:
+00049Br 2               	; tmpPosBottom > (tmpPosTop&F0H)+10H ならもう一つブロックチェック
+00049Br 2               	; よって，(tmpPosTmp&F0H) + 10H >= tmpPosBottom ならブロックチェックしない
+00049Br 2  18 69 10     	add #$10
+00049Er 2  C5 D3        	cmp S_CHECK_COLLISION::tmp_pos_bottom
+0004A0r 2  10 0C        	bpl @NOCOLLISION
+0004A2r 2  C8           	iny
+0004A3r 2  20 rr rr     	jsr S_GET_ISBLOCK
+0004A6r 2  F0 06        	beq @NOCOLLISION
+0004A8r 2  A9 02        	lda #%0010							; 左下
+0004AAr 2  05 DE        	ora S_CHECK_COLLISION::collision_pos
+0004ACr 2  85 DE        	sta S_CHECK_COLLISION::collision_pos
+0004AEr 2               @NOCOLLISION:
+0004AEr 2  60           	rts  ; -----------------------------
+0004AFr 2               
+0004AFr 2               
+0004AFr 2               ; ------------------------------------------------------------------------------
+0004AFr 2               ; 右あたり判定チェック
+0004AFr 2               ; ------------------------------------------------------------------------------
+0004AFr 2               
+0004AFr 2               S_GET_ISCOLLISION_R:
+0004AFr 2  A6 D5        	ldx S_CHECK_COLLISION::tmp_block_pos_right
+0004B1r 2  A4 D6        	ldy S_CHECK_COLLISION::tmp_block_pos_top
+0004B3r 2  20 rr rr     	jsr S_GET_ISBLOCK
+0004B6r 2  F0 06        	beq @NOCOLLISION_RIGHT
+0004B8r 2  A9 04        	lda #%0100							; 右上
+0004BAr 2  05 DE        	ora S_CHECK_COLLISION::collision_pos
+0004BCr 2  85 DE        	sta S_CHECK_COLLISION::collision_pos
+0004BEr 2               	;rts  ; -----------------------------
+0004BEr 2               @NOCOLLISION_RIGHT:
+0004BEr 2  A5 D2        	lda S_CHECK_COLLISION::tmp_pos_top
+0004C0r 2  29 F0        	and #%11110000
+0004C2r 2  10 04        	bpl @SKIP1
+0004C4r 2  C9 E0        	cmp #$e0
+0004C6r 2  10 13        	bpl @NOCOLLISION
+0004C8r 2               @SKIP1:
+0004C8r 2  18 69 10     	add #$10
+0004CBr 2  C5 D3        	cmp S_CHECK_COLLISION::tmp_pos_bottom
+0004CDr 2  10 0C        	bpl @NOCOLLISION
+0004CFr 2               
+0004CFr 2  C8           	iny
+0004D0r 2  20 rr rr     	jsr S_GET_ISBLOCK
+0004D3r 2  F0 06        	beq @NOCOLLISION
+0004D5r 2  A9 01        	lda #%0001							; 右下
+0004D7r 2  05 DE        	ora S_CHECK_COLLISION::collision_pos
+0004D9r 2  85 DE        	sta S_CHECK_COLLISION::collision_pos
+0004DBr 2               @NOCOLLISION:
+0004DBr 2  60           	rts  ; -----------------------------
+0004DCr 2               
+0004DCr 2               
+0004DCr 2               ; ------------------------------------------------------------------------------
+0004DCr 2               ; 下あたり判定チェック
+0004DCr 2               ; ------------------------------------------------------------------------------
+0004DCr 2               
+0004DCr 2               S_GET_ISCOLLISION_GROUND:
+0004DCr 2  A6 D4        	ldx S_CHECK_COLLISION::tmp_block_pos_left
+0004DEr 2  A4 D7        	ldy S_CHECK_COLLISION::tmp_block_pos_bottom
+0004E0r 2  20 rr rr     	jsr S_GET_ISBLOCK
+0004E3r 2  F0 06        	beq @NOCOLLISION_GROUND
+0004E5r 2  A9 02        	lda #%0010							; 左下
+0004E7r 2  05 DE        	ora S_CHECK_COLLISION::collision_pos
+0004E9r 2  85 DE        	sta S_CHECK_COLLISION::collision_pos
+0004EBr 2               @NOCOLLISION_GROUND:
+0004EBr 2               	; tmpPosRight > (tmpPosLeft&F0H)+10H ならブロックチェック
+0004EBr 2               	; よって，(tmpPosTmp&F0H) + 10H >= tmpPosBottom ならブロックチェックしない
+0004EBr 2  A5 D0        	lda S_CHECK_COLLISION::tmp_pos_left
+0004EDr 2  29 F0        	and #%11110000
+0004EFr 2  18 69 10     	add #$10
+0004F2r 2  C5 D1        	cmp S_CHECK_COLLISION::tmp_pos_right
+0004F4r 2  10 0C        	bpl @NOCOLLISION
+0004F6r 2  E8           	inx
+0004F7r 2  20 rr rr     	jsr S_GET_ISBLOCK
+0004FAr 2  F0 06        	beq @NOCOLLISION
+0004FCr 2  A9 01        	lda #%0001							; 右下
+0004FEr 2  05 DE        	ora S_CHECK_COLLISION::collision_pos
+000500r 2  85 DE        	sta S_CHECK_COLLISION::collision_pos
+000502r 2               @NOCOLLISION:
+000502r 2  60           	rts  ; -----------------------------
+000503r 2               
+000503r 2               
+000503r 2               ; ------------------------------------------------------------------------------
+000503r 2               ; 上あたり判定チェック
+000503r 2               ; ------------------------------------------------------------------------------
+000503r 2               
+000503r 2               S_GET_ISCOLLISION_UP:
+000503r 2  A6 D4        	ldx S_CHECK_COLLISION::tmp_block_pos_left
+000505r 2  A4 D6        	ldy S_CHECK_COLLISION::tmp_block_pos_top
+000507r 2  20 rr rr     	jsr S_GET_ISBLOCK
+00050Ar 2  F0 06        	beq @NOCOLLISION_UP
+00050Cr 2  A9 08        	lda #%1000							; 左上
+00050Er 2  05 DE        	ora S_CHECK_COLLISION::collision_pos
+000510r 2  85 DE        	sta S_CHECK_COLLISION::collision_pos
+000512r 2               @NOCOLLISION_UP:
+000512r 2  A5 D0        	lda S_CHECK_COLLISION::tmp_pos_left
+000514r 2  29 F0        	and #%11110000
+000516r 2  18 69 10     	add #$10
+000519r 2  C5 D1        	cmp S_CHECK_COLLISION::tmp_pos_right
+00051Br 2  10 0C        	bpl @NOCOLLISION
+00051Dr 2  E8           	inx
+00051Er 2  20 rr rr     	jsr S_GET_ISBLOCK
+000521r 2  F0 06        	beq @NOCOLLISION
+000523r 2  A9 04        	lda #%0100							; 右上
+000525r 2  05 DE        	ora S_CHECK_COLLISION::collision_pos
+000527r 2  85 DE        	sta S_CHECK_COLLISION::collision_pos
+000529r 2               @NOCOLLISION:
+000529r 2  60           	rts  ; -----------------------------
+00052Ar 2               
+00052Ar 2               ;* -----------------------------------------------------------------------------
+00052Ar 2               ;* 以下，上下左右座標修正
+00052Ar 2               ;* -----------------------------------------------------------------------------
+00052Ar 2               
+00052Ar 2               ; ------------------------------------------------------------------------------
+00052Ar 2               ; 右へ座標修正（左に衝突）
+00052Ar 2               ; ------------------------------------------------------------------------------
+00052Ar 2               
+00052Ar 2               S_FIX_L_COLLISION:
+00052Ar 2  A5 2A        	lda move_amount_sum
+00052Cr 2  18 65 DC     	add S_CHECK_COLLISION::start_x
+00052Fr 2  29 0F        	and #%00001111
+000531r 2  C9 04        	cmp #$04
+000533r 2  30 02        	bmi @SKIP1
+000535r 2  A9 00        	lda #$00
+000537r 2               @SKIP1:
+000537r 2  85 28        	sta mario_pixel_speed
+000539r 2               
+000539r 2               	; fix L over
+000539r 2  A5 35        	lda mario_posx
+00053Br 2  30 08        	bmi @SKIP_FIX_L_OVER
+00053Dr 2  C5 28        	cmp mario_pixel_speed
+00053Fr 2  10 04        	bpl @SKIP_FIX_L_OVER
+000541r 2  A5 35        	lda mario_posx
+000543r 2  85 28        	sta mario_pixel_speed
+000545r 2               @SKIP_FIX_L_OVER:
+000545r 2               
+000545r 2  60           	rts  ; -----------------------------
+000546r 2               
+000546r 2               
+000546r 2               ; ------------------------------------------------------------------------------
+000546r 2               ; 左へ座標修正（右に衝突）
+000546r 2               ; ------------------------------------------------------------------------------
+000546r 2               
+000546r 2               S_FIX_R_COLLISION:
+000546r 2  A5 2A        	lda move_amount_sum
+000548r 2  18 65 DC     	add S_CHECK_COLLISION::start_x
+00054Br 2  18 65 D8     	add S_CHECK_COLLISION::width
+00054Er 2  49 FF 18 69  	cnn
+000552r 2  01           
+000553r 2  29 0F        	and #%00001111
+000555r 2  C9 04        	cmp #$04
+000557r 2  30 02        	bmi @SKIP1
+000559r 2  A9 00        	lda #$00
+00055Br 2               @SKIP1:
+00055Br 2  85 28        	sta mario_pixel_speed
+00055Dr 2               
+00055Dr 2  60           	rts  ; -----------------------------
+00055Er 2               
+00055Er 2               
+00055Er 2               ; ------------------------------------------------------------------------------
+00055Er 2               ; 下へ座標修正（上に衝突）
+00055Er 2               ; ------------------------------------------------------------------------------
+00055Er 2               
+00055Er 2               S_FIX_UP_COLLISION:
+00055Er 2  A9 00        	lda #$00
+000560r 2  85 30        	sta ver_speed
+000562r 2  85 4A        	sta ver_pos_fix_val
+000564r 2               
+000564r 2  60           	rts  ; -----------------------------
+000565r 2               
+000565r 2               
+000565r 2               ; ------------------------------------------------------------------------------
+000565r 2               ; 上へ座標修正（下に衝突）
+000565r 2               ; ------------------------------------------------------------------------------
+000565r 2               
+000565r 2               S_FIX_GROUND_COLLISION:
+000565r 2  A2 00        	ldx #$00
+000567r 2  A5 30        	lda ver_speed
+000569r 2  30 17        	bmi @END
+00056Br 2  F0 13        	beq @RESET_FIX_VAL
+00056Dr 2  A5 36        	lda mario_posy
+00056Fr 2  18 65 DD     	add S_CHECK_COLLISION::start_y
+000572r 2  18 65 D9     	add S_CHECK_COLLISION::height
+000575r 2  49 FF 18 69  	cnn
+000579r 2  01           
+00057Ar 2  29 0F        	and #%00001111
+00057Cr 2  85 30        	sta ver_speed
+00057Er 2  86 37        	stx mario_isfly
+000580r 2               @RESET_FIX_VAL:
+000580r 2  86 4A        	stx ver_pos_fix_val
+000582r 2               @END:
+000582r 2  20 rr rr     	jsr S_RESET_PARAM_JUMP
+000585r 2  60           	rts  ; -----------------------------
+000586r 2               
+000586r 2               
+000586r 2               ; ------------------------------------------------------------------------------
+000586r 2               ; 引数の座標のブロック判定
+000586r 2               ; 引数：X, YレジスタにブロックのX, Y座標
+000586r 2               ; 破壊：Aレジスタ（X, Y破壊しない）
+000586r 2               ; 戻り値：無し
+000586r 2               ; ------------------------------------------------------------------------------
+000586r 2               
+000586r 2               S_GET_ISBLOCK:
+000586r 2  A5 DA        	lda S_CHECK_COLLISION::move_amount_disp
+000588r 2  E0 10        	cpx #$10
+00058Ar 2  30 02        	bmi @NOINCDISP
+00058Cr 2  49 01        	eor #%00000001						; +1する→下位1bit変化
+00058Er 2               @NOINCDISP:
+00058Er 2  29 01        	and #%00000001
+000590r 2  18 69 04     	add #$04
+000593r 2  85 06        	sta addr_upper
+000595r 2  98           	tya
+000596r 2  0A 0A 0A 0A  	lsft4
+00059Ar 2  85 05        	sta addr_lower
+00059Cr 2  8A           	txa
+00059Dr 2  29 0F        	and #%00001111
+00059Fr 2  05 05        	ora addr_lower
+0005A1r 2  85 05        	sta addr_lower
+0005A3r 2  84 DB        	sty S_CHECK_COLLISION::tmp1
+0005A5r 2  A0 00        	ldy #$00
+0005A7r 2  B1 05        	lda (addr_lower), y
+0005A9r 2  A4 DB        	ldy S_CHECK_COLLISION::tmp1
+0005ABr 2               	; ブロックにあたり判定があるか
+0005ABr 2  C9 00        	cmp #$00
+0005ADr 2  F0 03        	beq @NOCOLLISION
+0005AFr 2  A9 01        	lda #$01
+0005B1r 2  60           	rts  ; -----------------------------
+0005B2r 2               @NOCOLLISION:
+0005B2r 2  A9 00        	lda #$00
+0005B4r 2  60           	rts  ; -----------------------------
+0005B5r 2               
+0005B5r 2               
+0005B5r 2               ; ------------------------------------------------------------------------------
+0005B5r 2               ; 仮座標やブロック座標、左端修正を行う
+0005B5r 2               ; 引数無し
+0005B5r 2               ; A, X, Yレジスタ破壊
+0005B5r 2               ; 戻り値無し
+0005B5r 2               ; ------------------------------------------------------------------------------
+0005B5r 2               
+0005B5r 2               S_GET_TMP_POS:
+0005B5r 2  A5 25        	lda mario_x_direction
+0005B7r 2  D0 0A        	bne @SKIP_FIX_OVER_L
+0005B9r 2  A5 35        	lda mario_posx
+0005BBr 2  30 06        	bmi @SKIP_FIX_OVER_L
+0005BDr 2  C5 28        	cmp mario_pixel_speed				; subの代わり poxX - speed >= 0
+0005BFr 2  10 02        	bpl @SKIP_FIX_OVER_L
+0005C1r 2  85 28        	sta mario_pixel_speed				; 左端修正
+0005C3r 2               @SKIP_FIX_OVER_L:
+0005C3r 2  A5 2A        	lda move_amount_sum
+0005C5r 2  18 65 DC     	add S_CHECK_COLLISION::start_x
+0005C8r 2  A6 25        	ldx mario_x_direction				; 分岐用
+0005CAr 2  D0 0F        	bne @R
+0005CCr 2  38 E5 28     	sub mario_pixel_speed
+0005CFr 2  85 D0        	sta S_CHECK_COLLISION::tmp_pos_left
+0005D1r 2  B0 14        	bcs @STORE_MOVE_AMOUNT
+0005D3r 2  A6 2B        	ldx move_amount_disp
+0005D5r 2  CA           	dex
+0005D6r 2  86 DA        	stx S_CHECK_COLLISION::move_amount_disp
+0005D8r 2  4C rr rr     	jmp @STORE_MOVE_AMOUNT
+0005DBr 2               @R:
+0005DBr 2  18 65 28     	add mario_pixel_speed
+0005DEr 2  85 D0        	sta S_CHECK_COLLISION::tmp_pos_left
+0005E0r 2  90 05        	bcc @STORE_MOVE_AMOUNT
+0005E2r 2  A6 2B        	ldx move_amount_disp
+0005E4r 2  E8           	inx
+0005E5r 2  86 DA        	stx S_CHECK_COLLISION::move_amount_disp
+0005E7r 2               @STORE_MOVE_AMOUNT:
+0005E7r 2  A5 D0        	lda S_CHECK_COLLISION::tmp_pos_left		; 以前のtmp_posXと同じ
+0005E9r 2  4A 4A 4A 4A  	rsft4
+0005EDr 2  85 D4        	sta S_CHECK_COLLISION::tmp_block_pos_left
+0005EFr 2               
+0005EFr 2  A5 D0        	lda S_CHECK_COLLISION::tmp_pos_left
+0005F1r 2  18 65 D8     	add S_CHECK_COLLISION::width
+0005F4r 2  38 E9 01     	sub #1
+0005F7r 2  85 D1        	sta S_CHECK_COLLISION::tmp_pos_right
+0005F9r 2  4A 4A 4A 4A  	rsft4
+0005FDr 2  85 D5        	sta S_CHECK_COLLISION::tmp_block_pos_right
+0005FFr 2               
+0005FFr 2  A5 36        	lda mario_posy
+000601r 2  18 65 30     	add ver_speed
+000604r 2  18 65 4A     	add ver_pos_fix_val
+000607r 2  18 65 DD     	add S_CHECK_COLLISION::start_y
+00060Ar 2  85 D2        	sta S_CHECK_COLLISION::tmp_pos_top
+00060Cr 2  4A 4A 4A 4A  	rsft4
+000610r 2  85 D6        	sta S_CHECK_COLLISION::tmp_block_pos_top
+000612r 2               
+000612r 2  A5 D2        	lda S_CHECK_COLLISION::tmp_pos_top
+000614r 2  18 65 D9     	add S_CHECK_COLLISION::height
+000617r 2  38 E9 01     	sub #1
+00061Ar 2  85 D3        	sta S_CHECK_COLLISION::tmp_pos_bottom
+00061Cr 2  4A 4A 4A 4A  	rsft4
+000620r 2  85 D7        	sta S_CHECK_COLLISION::tmp_block_pos_bottom
+000622r 2               
+000622r 2               	; store fix pos
+000622r 2  A5 D1        	lda S_CHECK_COLLISION::tmp_pos_right
+000624r 2  18 69 01     	add #1
+000627r 2  85 DF        	sta S_CHECK_COLLISION::tmp_fixpos_right
+000629r 2  4A 4A 4A 4A  	rsft4
+00062Dr 2  85 E1        	sta S_CHECK_COLLISION::tmp_block_fixpos_right
+00062Fr 2               
+00062Fr 2  A5 D3        	lda S_CHECK_COLLISION::tmp_pos_bottom
+000631r 2  18 69 01     	add #1
+000634r 2  85 E0        	sta S_CHECK_COLLISION::tmp_fixpos_bottom
+000636r 2  4A 4A 4A 4A  	rsft4
+00063Ar 2  85 E2        	sta S_CHECK_COLLISION::tmp_block_fixpos_bottom
+00063Cr 2               
+00063Cr 2  60           	rts  ; -----------------------------
+00063Dr 2               
+00063Dr 1               .include "./asm/anime.asm"				; マリオアニメーション
+00063Dr 2               .scope MARIO_ANIME_INDEX
+00063Dr 2               		STOP = $00
+00063Dr 2               		ANIME = $01*2
+00063Dr 2               		BRAKE = $04*2
+00063Dr 2               		JUMP = $05*2
+00063Dr 2               .endscope
+00063Dr 2               
+00063Dr 2               .scope MARIO_WALK_ANIME_INDEX
+00063Dr 2               		ANIME1 = MARIO_ANIME_INDEX::ANIME
+00063Dr 2               		ANIME2 = MARIO_ANIME_INDEX::ANIME+02
+00063Dr 2               		ANIME3 = MARIO_ANIME_INDEX::ANIME+04
+00063Dr 2               .endscope
+00063Dr 2               
+00063Dr 2               
+00063Dr 2               ; ------------------------------------------------------------------------------
+00063Dr 2               ; マリオの座標、アニメーションをストア
+00063Dr 2               ; 引数無し
+00063Dr 2               ; A, X, Yレジスタ破壊
+00063Dr 2               ; 戻り値無し
+00063Dr 2               ; ------------------------------------------------------------------------------
+00063Dr 2               
+00063Dr 2               S_STORE_MARIO:
+00063Dr 2               		; X座標
+00063Dr 2  A5 28        		lda mario_pixel_speed
+00063Fr 2  A6 25        		ldx mario_x_direction			; 分岐用
+000641r 2  D0 05        		bne	@SKIP_CNN
+000643r 2  49 FF 18 69  		cnn
+000647r 2  01           
+000648r 2               @SKIP_CNN:
+000648r 2  18 65 35     		add mario_posx
+00064Br 2  C9 70        		cmp #MARIO_MAX_POSX
+00064Dr 2  30 0A        		bmi @NOSCROLL					; スクロールするかの分岐
+00064Fr 2  F0 08        		beq @NOSCROLL
+000651r 2  38           		sec
+000652r 2  E9 70        		sbc #MARIO_MAX_POSX
+000654r 2  20 rr rr     		jsr S_SCROLL_MAP				; スクロール、Aレジスタ引数
+000657r 2  A9 70        		lda #MARIO_MAX_POSX
+000659r 2               @NOSCROLL:
+000659r 2  85 35        		sta mario_posx
+00065Br 2               
+00065Br 2  A5 26        		lda mario_face_direction		; 顔の向きで分岐
+00065Dr 2  F0 14        		beq @L
+00065Fr 2               
+00065Fr 2  A5 35        		lda mario_posx					; X座標ストア、右に進んでるとき
+000661r 2  8D 07 03     		sta CHR_BUFFER::MARIO_POSX
+000664r 2  8D 0F 03     		sta CHR_BUFFER::MARIO_POSX+$8
+000667r 2  18 69 08     		add #$08
+00066Ar 2  8D 0B 03     		sta CHR_BUFFER::MARIO_POSX+$4
+00066Dr 2  8D 13 03     		sta CHR_BUFFER::MARIO_POSX+$c
+000670r 2  18           		clc
+000671r 2  90 11        		bcc @END_STORE_POSX				; 強制ジャンプ
+000673r 2               @L:
+000673r 2  A5 35        		lda mario_posx					; X座標ストア、左に進んでるとき
+000675r 2  8D 0B 03     		sta CHR_BUFFER::MARIO_POSX+$4
+000678r 2  8D 13 03     		sta CHR_BUFFER::MARIO_POSX+$c
+00067Br 2  18 69 08     		add #$08
+00067Er 2  8D 07 03     		sta CHR_BUFFER::MARIO_POSX
+000681r 2  8D 0F 03     		sta CHR_BUFFER::MARIO_POSX+$8
+000684r 2               @END_STORE_POSX:
+000684r 2  A5 26        		lda mario_face_direction		; マリオの方向を顔の方向で変える
+000686r 2  49 01        		eor #$01
+000688r 2  18           		clc
+000689r 2  6A           		ror
+00068Ar 2  6A           		ror
+00068Br 2  6A           		ror
+00068Cr 2  8D 06 03     		sta CHR_BUFFER::MARIO_ATTR
+00068Fr 2  8D 0A 03     		sta CHR_BUFFER::MARIO_ATTR+$4
+000692r 2  8D 0E 03     		sta CHR_BUFFER::MARIO_ATTR+$8
+000695r 2  8D 12 03     		sta CHR_BUFFER::MARIO_ATTR+$c
+000698r 2               
+000698r 2               		; Y座標
+000698r 2  A5 36        		lda mario_posy
+00069Ar 2               		;cmp #$c0						; 床のあたり判定（一時）
+00069Ar 2               		;bmi @NOCOLLISION
+00069Ar 2               		;beq @NOCOLLISION
+00069Ar 2               		;ldx #$c0
+00069Ar 2               		;jsr S_RESET_PARAM_JUMP
+00069Ar 2               		;lda #$c0
+00069Ar 2               @NOCOLLISION:
+00069Ar 2               		;sta mario_posy
+00069Ar 2               
+00069Ar 2  8D 04 03     		sta CHR_BUFFER::MARIO_POSY		; Y座標セット
+00069Dr 2  8D 08 03     		sta CHR_BUFFER::MARIO_POSY+$4
+0006A0r 2  18 69 08     		add #$08
+0006A3r 2  8D 0C 03     		sta CHR_BUFFER::MARIO_POSY+$8
+0006A6r 2  8D 10 03     		sta CHR_BUFFER::MARIO_POSY+$c
+0006A9r 2               
+0006A9r 2               		; アニメーション
+0006A9r 2  A5 37        		lda mario_isfly
+0006ABr 2  F0 06        		beq @GROUND
+0006ADr 2  A2 0A        		ldx #MARIO_ANIME_INDEX::JUMP	; ジャンプ
+0006AFr 2  20 rr rr     		jsr S_STORE_MARIO_TILE
+0006B2r 2  60           		rts  ; -------------------------
+0006B3r 2               @GROUND:								; 床
+0006B3r 2  A5 20        		lda mario_speed_L
+0006B5r 2  05 21        		ora mario_speed_R
+0006B7r 2  F0 12        		beq @STOP						; 速度0
+0006B9r 2  A5 24        		lda brake
+0006BBr 2  D0 14        		bne @BRAKE
+0006BDr 2  20 rr rr     		jsr S_CHANGE_WALK_ANIME
+0006C0r 2  A5 39        		lda mario_anime_counter			; 引数
+0006C2r 2  0A           		asl
+0006C3r 2  18 69 02     		add #MARIO_WALK_ANIME_INDEX::ANIME1
+0006C6r 2  AA           		tax
+0006C7r 2  20 rr rr     		jsr S_STORE_MARIO_TILE
+0006CAr 2  60           		rts  ; -------------------------
+0006CBr 2               @STOP:									; 静止中
+0006CBr 2  A2 00        		ldx #MARIO_ANIME_INDEX::STOP
+0006CDr 2  20 rr rr     		jsr S_STORE_MARIO_TILE
+0006D0r 2  60           		rts  ; -------------------------
+0006D1r 2               @BRAKE:									; ブレーキ
+0006D1r 2  A2 08        		ldx #MARIO_ANIME_INDEX::BRAKE
+0006D3r 2  20 rr rr     		jsr S_STORE_MARIO_TILE
+0006D6r 2  60           		rts  ; -------------------------
+0006D7r 2               
+0006D7r 2               
+0006D7r 2               ; ------------------------------------------------------------------------------
+0006D7r 2               ; 歩き、ダッシュ時のアニメーション変更
+0006D7r 2               ; 引数無し
+0006D7r 2               ; A, Xレジスタ破壊
+0006D7r 2               ; 戻り値無し
+0006D7r 2               ; ------------------------------------------------------------------------------
+0006D7r 2               
+0006D7r 2               S_CHANGE_WALK_ANIME:
+0006D7r 2               					; 2 * (5 - speed)
+0006D7r 2               
+0006D7r 2               ; if (mario_anime_timer < frame_counter || frame_counter < mario_anime_timer - mario_anime_speed) {
+0006D7r 2               ; 	mario_anime_timer = frame_counter
+0006D7r 2               ; }
+0006D7r 2               ; if (mario_anime_timer == frame_counter) {
+0006D7r 2               ; 	// キャラクター変更
+0006D7r 2               ; }
+0006D7r 2               
+0006D7r 2               ; anime_timer 10
+0006D7r 2               ; anime_speed 4
+0006D7r 2               ; frame_counter
+0006D7r 2               ; 	0 -> 10
+0006D7r 2               ; 	6 -> 6
+0006D7r 2               ; 	10 -> 14 anime
+0006D7r 2               ; 	11 -> 10
+0006D7r 2               
+0006D7r 2               		; if (mario_anime_timer < frame_counter || frame_counter + mario_anime_speed < mario_anime_timer) {
+0006D7r 2               		; 	mario_anime_timer = frame_counter
+0006D7r 2               		; }
+0006D7r 2               
+0006D7r 2  A6 3A        		ldx mario_anime_timer
+0006D9r 2  F0 04        		beq @SKIP1
+0006DBr 2  CA           		dex
+0006DCr 2  86 3A        		stx mario_anime_timer
+0006DEr 2  60           		rts  ; -------------------------
+0006DFr 2               @SKIP1:
+0006DFr 2  A9 04        		lda #$04
+0006E1r 2  38 E5 28     		sub mario_pixel_speed
+0006E4r 2  85 3A        		sta mario_anime_timer
+0006E6r 2  85 3E        		sta mario_anime_speed
+0006E8r 2               
+0006E8r 2  A6 39        		ldx mario_anime_counter
+0006EAr 2  E8           		inx
+0006EBr 2  E0 03        		cpx #$03
+0006EDr 2  D0 02        		bne @SKIP2
+0006EFr 2  A2 00        		ldx #$00
+0006F1r 2               @SKIP2:
+0006F1r 2  86 39        		stx mario_anime_counter
+0006F3r 2  60           		rts  ; -------------------------
+0006F4r 2               
+0006F4r 2               
+0006F4r 2               ; ------------------------------------------------------------------------------
+0006F4r 2               ; マリオのタイルをスプライトバッファに保存
+0006F4r 2               ; 引数 Xレジスタ：ANIME_ARRのインデックス
+0006F4r 2               ; A, Yレジスタ破壊
+0006F4r 2               ; 戻り値無し
+0006F4r 2               ; ------------------------------------------------------------------------------
+0006F4r 2               
+0006F4r 2               S_STORE_MARIO_TILE:
+0006F4r 2  BD rr rr     		lda MARIO_ANIME_ARR, x
+0006F7r 2  85 05        		sta addr_lower
+0006F9r 2  BD rr rr     		lda MARIO_ANIME_ARR+1, x
+0006FCr 2  85 06        		sta addr_upper
+0006FEr 2  A0 00        		ldy #$00
+000700r 2  B1 05        		lda (addr_lower), y
+000702r 2  8D 05 03     		sta CHR_BUFFER::MARIO_CHIP
+000705r 2  C8           		iny
+000706r 2  B1 05        		lda (addr_lower), y
+000708r 2  8D 09 03     		sta CHR_BUFFER::MARIO_CHIP+$4
+00070Br 2  C8           		iny
+00070Cr 2  B1 05        		lda (addr_lower), y
+00070Er 2  8D 0D 03     		sta CHR_BUFFER::MARIO_CHIP+$8
+000711r 2  C8           		iny
+000712r 2  B1 05        		lda (addr_lower), y
+000714r 2  8D 11 03     		sta CHR_BUFFER::MARIO_CHIP+$c
+000717r 2  60           		rts  ; -------------------------
+000718r 2               
+000718r 2               
+000718r 2               ; ------------------------------------------------------------------------------
+000718r 2               ; マリオオブジェクトデータ
+000718r 2               ; ------------------------------------------------------------------------------
+000718r 2               
+000718r 2               MARIO_STOP:
+000718r 2  00 01 02 03  		.byte $00, $01, $02, $03
+00071Cr 2               
+00071Cr 2               MARIO_ANIME1:
+00071Cr 2  04 05 06 07  		.byte $04, $05, $06, $07
+000720r 2               
+000720r 2               MARIO_ANIME2:
+000720r 2  08 09 0A 0B  		.byte $08, $09, $0a, $0b
+000724r 2               
+000724r 2               MARIO_ANIME3:
+000724r 2  0C 0D 0E 0F  		.byte $0c, $0d, $0e, $0f
+000728r 2               
+000728r 2               MARIO_JUMP:
+000728r 2  10 11 12 13  		.byte $10, $11, $12, $13
+00072Cr 2               
+00072Cr 2               MARIO_BRAKE:
+00072Cr 2  14 15 16 17  		.byte $14, $15, $16, $17
+000730r 2               
+000730r 2               MARIO_ANIME_ARR:
+000730r 2  rr rr        		.word MARIO_STOP
+000732r 2  rr rr rr rr  		.word MARIO_ANIME1, MARIO_ANIME2, MARIO_ANIME3
+000736r 2  rr rr        
+000738r 2  rr rr        		.word MARIO_BRAKE
+00073Ar 2  rr rr        		.word MARIO_JUMP
+00073Cr 2               
+00073Cr 1               .include "./asm/nmi.asm"				; NMI
+00073Cr 2               ; ------------------------------------------------------------------------------
+00073Cr 2               ; NMIでパレットデータをバッファからVRAMへストアする
+00073Cr 2               ; 引数無し
+00073Cr 2               ; A, X, Yレジスタ破壊
+00073Cr 2               ; 戻り値無し
+00073Cr 2               ; ------------------------------------------------------------------------------
+00073Cr 2               
+00073Cr 2               S_STORE_PLT_TO_BUFF:
+00073Cr 2  A2 00        		ldx #$00
+00073Er 2  A0 00        		ldy #$00
+000740r 2               @STORE_LOOP:
+000740r 2  BD 90 06     		lda plt_addr_arr, x				; アドレスセット
+000743r 2  8D 06 20     		sta PPU_ADDRESS
+000746r 2  E8           		inx
+000747r 2  BD 90 06     		lda plt_addr_arr, x
+00074Ar 2  8D 06 20     		sta PPU_ADDRESS
+00074Dr 2  E8           		inx
+00074Er 2  B9 00 06     		lda plt_arr, y					; パレットデータセット
+000751r 2  8D 07 20     		sta PPU_ACCESS
+000754r 2               
+000754r 2  C8           		iny
+000755r 2  C0 08        		cpy #$08
+000757r 2  D0 E7        		bne @STORE_LOOP
+000759r 2  60           		rts  ; -------------------------
+00075Ar 2               
+00075Ar 2               
+00075Ar 2               ; ------------------------------------------------------------------------------
+00075Ar 2               ; VRAMにマップをストアする
+00075Ar 2               ; 引数無し
+00075Ar 2               ; A, Xレジスタ破壊
+00075Ar 2               ; 戻り値無し
+00075Ar 2               ; ------------------------------------------------------------------------------
+00075Ar 2               
+00075Ar 2               S_STORE_MAPOBJ_VRAM:
+00075Ar 2  A2 00        		ldx #$00
+00075Cr 2               @LOOP1:
+00075Cr 2  BD 10 06     		lda map_data_arr, x
+00075Fr 2  8D 06 20     		sta PPU_ADDRESS
+000762r 2  E8           		inx
+000763r 2  BD 10 06     		lda map_data_arr, x
+000766r 2  8D 06 20     		sta PPU_ADDRESS
+000769r 2  E8           		inx
+00076Ar 2               
+00076Ar 2  BD 10 06     		lda map_data_arr, x
+00076Dr 2  8D 07 20     		sta PPU_ACCESS
+000770r 2  E8           		inx
+000771r 2  BD 10 06     		lda map_data_arr, x
+000774r 2  8D 07 20     		sta PPU_ACCESS
+000777r 2  E8           		inx
+000778r 2               
+000778r 2  E0 78        		cpx #$0f*2*4					; *4はinxを一回のループ中に4回行うから
+00077Ar 2  D0 E0        		bne @LOOP1
+00077Cr 2  60           		rts  ; -------------------------
+00077Dr 2               
+00077Dr 1               .include "./asm/draw_map.asm"			; マップ描画
+00077Dr 2               ; ------------------------------------------------------------------------------
+00077Dr 2               ; マップを一列ずつ更新
+00077Dr 2               ; 引数無し
+00077Dr 2               ; A, X, Yレジスタ破壊
+00077Dr 2               ; 戻り値無し
+00077Dr 2               ; ------------------------------------------------------------------------------
+00077Dr 2               
+00077Dr 2               S_DRAW_ADDMAP:
+00077Dr 2               		; このルーチンの最初に地面、空をストアする
+00077Dr 2  20 rr rr     		jsr S_MAPRAM_INIT	; A, X, Yレジスタ破壊
+000780r 2               @DRAW_ADDMAP_START:
+000780r 2  A6 19        		ldx obj_num	; これはCHK_EFまで破壊しては駄目
+000782r 2               		; obj_posx, Yを求める
+000782r 2  BD rr rr     		lda MAP1_1_POS, x
+000785r 2  29 F0        		and #%11110000
+000787r 2  18           		clc
+000788r 2  4A 4A 4A 4A  		rsft4
+00078Cr 2  85 16        		sta obj_posx
+00078Er 2  BD rr rr     		lda MAP1_1_POS, x
+000791r 2  29 0F        		and #%00001111
+000793r 2  85 17        		sta obj_posy
+000795r 2               		; obj_chipを求める
+000795r 2  BD rr rr     		lda MAP1_1_OBJ, x
+000798r 2  85 18        		sta obj_chip
+00079Ar 2               		; obj_chipがEF, FFのときの分岐
+00079Ar 2  C9 FF        		cmp #$ff	; FFで引っかかったときは何もしない
+00079Cr 2  D0 04        		bne @CHK_EF
+00079Er 2  20 rr rr     		jsr S_CALC_PALETTE	; NMI用のデータ
+0007A1r 2  60           		rts  ; -------------------------
+0007A2r 2               @CHK_EF:	; EFで引っかかったとき→ef_cntとobj_numとram_posx_cnt（10HになったときはLPCNTも）だけインクリメントしたい
+0007A2r 2  C9 EF        		cmp #$ef
+0007A4r 2  D0 0B        		bne @STORE
+0007A6r 2  E6 1C        		inc ef_cnt
+0007A8r 2  E6 19        		inc obj_num
+0007AAr 2  20 rr rr     		jsr S_CALC_PALETTE	; NMI用のデータ
+0007ADr 2  20 rr rr     		jsr S_INC_RAM_POSX_CNT
+0007B0r 2  60           		rts  ; -------------------------
+0007B1r 2               @STORE:
+0007B1r 2               		; ram_posx_lpcnt = ef_cntでないときスキップ
+0007B1r 2  A5 1B        		lda ram_posx_lpcnt
+0007B3r 2  C5 1C        		cmp ef_cnt
+0007B5r 2  F0 07        		beq @LOOP	; BNE => ram_posx_cnt（10HになったときはLPCNTも）をインクリメントしたい
+0007B7r 2  20 rr rr     		jsr S_CALC_PALETTE	; NMI用のデータ
+0007BAr 2  20 rr rr     		jsr S_INC_RAM_POSX_CNT
+0007BDr 2  60           		rts  ; -------------------------
+0007BEr 2               @LOOP:
+0007BEr 2               @CHK_X:
+0007BEr 2  A5 1A        		lda ram_posx_cnt
+0007C0r 2  C5 16        		cmp obj_posx
+0007C2r 2  F0 07        		beq @CHK_Y	; Xが駄目->MAP_LOOP_Yを0にして終了，ram_posx_cntのインクリメント
+0007C4r 2  20 rr rr     		jsr S_CALC_PALETTE	; NMI用のデータ
+0007C7r 2  20 rr rr     		jsr S_INC_RAM_POSX_CNT
+0007CAr 2  60           		rts  ; -------------------------
+0007CBr 2               @CHK_Y:
+0007CBr 2  A5 1F        		lda map_loop_y		; MAP_LOOP_Yからobj_posx，ram_posx_cntがobj_posyに等しくなければスキップ
+0007CDr 2  C5 17        		cmp obj_posy
+0007CFr 2  F0 0B        		beq @CHK_POS_END	; この場合はMAP_LOOP_Yだけインクリメントしてloopの初めから
+0007D1r 2  20 rr rr     		jsr S_INC_MAP_LOOP_Y
+0007D4r 2  D0 04        		bne @GOTO_LOOP
+0007D6r 2               		; 10になってたら
+0007D6r 2  20 rr rr     		jsr S_CALC_PALETTE	; NMI用のデータ
+0007D9r 2  60           		rts  ; -------------------------
+0007DAr 2               @GOTO_LOOP:
+0007DAr 2  D0 E2        		bne @LOOP
+0007DCr 2               
+0007DCr 2               @CHK_POS_END:
+0007DCr 2               		; lda map_buff_lower
+0007DCr 2               		; sta addr_lower
+0007DCr 2               		; lda map_buff_upper
+0007DCr 2               		; sta addr_upper
+0007DCr 2               
+0007DCr 2  A5 17        		lda obj_posy
+0007DEr 2  0A 0A 0A 0A  		lsft4
+0007E2r 2  05 16        		ora obj_posx
+0007E4r 2  85 05        		sta addr_lower
+0007E6r 2  A5 1B        		lda ram_posx_lpcnt
+0007E8r 2  29 01        		and #%00000001
+0007EAr 2  18 69 04     		add #$04
+0007EDr 2  85 06        		sta addr_upper
+0007EFr 2               		; obj_chipをADDR_LOWERの場所にストア
+0007EFr 2  A5 18        		lda obj_chip
+0007F1r 2  A0 00        		ldy #$00	; これはすぐ破壊してよし
+0007F3r 2  91 05        		sta (addr_lower), y
+0007F5r 2  E6 19        		inc obj_num
+0007F7r 2               
+0007F7r 2  20 rr rr     		jsr S_CALC_PALETTE
+0007FAr 2  20 rr rr     		jsr S_INC_MAP_LOOP_Y
+0007FDr 2  F0 03        		beq @END
+0007FFr 2  4C rr rr     		jmp @DRAW_ADDMAP_START
+000802r 2               @END:
+000802r 2  60           		rts  ; -------------------------
+000803r 2               
+000803r 2               
+000803r 2               ; ------------------------------------------------------------------------------
+000803r 2               ; ram_posx_cnt, ram_posx_lpcntのインクリメント，MAP_LOOP_Yの初期化
+000803r 2               ; 引数無し
+000803r 2               ; A, Xレジスタ破壊
+000803r 2               ; 戻り値無し
+000803r 2               ; ------------------------------------------------------------------------------
+000803r 2               
+000803r 2               S_INC_RAM_POSX_CNT:
+000803r 2  A9 00        		lda #$00
+000805r 2  85 1F        		sta map_loop_y	; セットで行う
+000807r 2               
+000807r 2  A6 1A        		ldx ram_posx_cnt
+000809r 2  E8           		inx
+00080Ar 2  E0 10        		cpx #$10
+00080Cr 2  F0 03        		beq @INC_RAM_POSX_LPCNT
+00080Er 2  86 1A        		stx ram_posx_cnt
+000810r 2  60           		rts  ; -------------------------
+000811r 2               @INC_RAM_POSX_LPCNT:
+000811r 2  A2 00        		ldx #$00
+000813r 2  86 1A        		stx ram_posx_cnt
+000815r 2  E6 1B        		inc ram_posx_lpcnt
+000817r 2  60           		rts  ; -------------------------
+000818r 2               
+000818r 2               
+000818r 2               ; ------------------------------------------------------------------------------
+000818r 2               ; MAP_LOOP_Yをインクリメントし，10Hと比較した結果を返す
+000818r 2               ; 引数無し
+000818r 2               ; Aレジスタ破壊
+000818r 2               ; 戻り値ネガティブフラグ、ゼロフラグ
+000818r 2               ; ------------------------------------------------------------------------------
+000818r 2               
+000818r 2               S_INC_MAP_LOOP_Y:
+000818r 2  E6 1F        		inc map_loop_y
+00081Ar 2  A5 1F        		lda map_loop_y
+00081Cr 2  C9 10        		cmp #$10
+00081Er 2  D0 04        		bne @END
+000820r 2  A9 00        		lda #$00
+000822r 2  85 1F        		sta map_loop_y
+000824r 2               @END:
+000824r 2  60           		rts  ; -------------------------
+000825r 2               
+000825r 2               
+000825r 2               ; ------------------------------------------------------------------------------
+000825r 2               ; RAM_LOWER/UPPERをセットする
+000825r 2               ; 引数無し
+000825r 2               ; Aレジスタ破壊
+000825r 2               ; 戻り値無し
+000825r 2               ; ------------------------------------------------------------------------------
+000825r 2               
+000825r 2               S_SET_RAM_ADDR:
+000825r 2  A5 1A        		lda ram_posx_cnt
+000827r 2  85 14        		sta map_buff_lower
+000829r 2               
+000829r 2  A5 1B        		lda ram_posx_lpcnt
+00082Br 2  29 01        		and #%00000001
+00082Dr 2  85 0F        		sta map_vaddr_upper
+00082Fr 2  18 69 04     		add #$04
+000832r 2  85 15        		sta map_buff_upper
+000834r 2               
+000834r 2  60           		rts  ; -------------------------
+000835r 2               
+000835r 2               
+000835r 2               ; ------------------------------------------------------------------------------
+000835r 2               ; マップを更新する行のRAMを初期化
+000835r 2               ; 引数無し
+000835r 2               ; A, X, Yレジスタ破壊
+000835r 2               ; 戻り値無し
+000835r 2               ; ------------------------------------------------------------------------------
+000835r 2               
+000835r 2               S_MAPRAM_INIT:
+000835r 2  A9 00        		lda #SKY	; 初めは地面
+000837r 2  A2 00        		ldx #$00	; 画面上部分（タイム、スコア等の場所）も含めて更新している => 02でもOK
+000839r 2               @LOOP:
+000839r 2  E0 0D        		cpx #$0d	; 地面の数，変数で変えられるようにしたい
+00083Br 2  D0 02        		bne @SKIP1
+00083Dr 2  A9 47        		lda #GROUND	; 空
+00083Fr 2               @SKIP1:
+00083Fr 2  A8           		tay	; Aレジスタ退避
+000840r 2  A5 1A        		lda ram_posx_cnt	; これはインクルード済み
+000842r 2  85 1D        		sta ram_posx
+000844r 2  8A           		txa
+000845r 2  0A 0A 0A 0A  		lsft4
+000849r 2  05 1D        		ora ram_posx
+00084Br 2  85 1D        		sta ram_posx
+00084Dr 2  A5 1B        		lda ram_posx_lpcnt
+00084Fr 2  29 01        		and #%00000001
+000851r 2  18 69 04     		add #$04
+000854r 2  85 1E        		sta ram_posy
+000856r 2  98           		tya	; Aレジスタ復旧
+000857r 2  A0 00        		ldy #$00
+000859r 2  91 1D        		sta (ram_posx), y
+00085Br 2  E8           		inx
+00085Cr 2  E0 0F        		cpx #$0f
+00085Er 2  D0 D9        		bne @LOOP
+000860r 2               
+000860r 2  60           		rts  ; -------------------------
+000861r 2               
+000861r 2               
+000861r 2               ; ------------------------------------------------------------------------------
+000861r 2               ; NMIでストアするオブジェクトデータをバッファ（多分600H）に転送
+000861r 2               ; 引数無し
+000861r 2               ; A, X, Yレジスタ無し
+000861r 2               ; d0~d1使用
+000861r 2               ; 戻り値なし
+000861r 2               ; ------------------------------------------------------------------------------
+000861r 2               
+000861r 2               .scope S_TRANSFAR_OBJDATA_TOBUFFER
+000861r 2               	addr_lower = $d0
+000861r 2               	addr_upper = $d1
+000861r 2               .endscope
+000861r 2               
+000861r 2               S_TRANSFAR_OBJDATA_TOBUFFER:
+000861r 2  A5 14        		lda map_buff_lower
+000863r 2  48           	pha
+000864r 2  18 69 20     	add #$20
+000867r 2  85 D0        		sta S_TRANSFAR_OBJDATA_TOBUFFER::addr_lower
+000869r 2  68           	pla
+00086Ar 2  0A           	asl
+00086Br 2  18 69 80     	add #$80
+00086Er 2  85 10        		sta map_vaddr_lower				; X座標データ、Y座標はループで回す
+000870r 2               
+000870r 2  A5 15        		lda map_buff_upper
+000872r 2  85 D1        		sta S_TRANSFAR_OBJDATA_TOBUFFER::addr_upper
+000874r 2  A5 0F        		lda map_vaddr_upper				; 0H or 1H
+000876r 2  0A           		asl
+000877r 2  0A           		asl								; 0H or 4H
+000878r 2  18 69 20     		add #$20
+00087Br 2  85 0F        		sta map_vaddr_upper				; 20H or 24H
+00087Dr 2               
+00087Dr 2  A9 0D        		lda #$0d
+00087Fr 2  85 00        		sta tmp1						; ループカウンタ
+000881r 2  A2 00        		ldx #$00
+000883r 2               @LOOP1:
+000883r 2  A0 00        		ldy #$00
+000885r 2  B1 D0        		lda (S_TRANSFAR_OBJDATA_TOBUFFER::addr_lower), y	; バッファデータ（0, A-Z）
+000887r 2  29 3F        		and #%00111111					; 0H, 41H~5BH =>  0H~1BH
+000889r 2  0A           		asl								; 0, A-Zに割り振られた16bitアドレスを拾ってくる
+00088Ar 2  A8           		tay
+00088Br 2  B9 rr rr     		lda OBJ_CHIP_MAP, y
+00088Er 2  85 0D        		sta map_addr_lower				; 再利用
+000890r 2  C8           		iny
+000891r 2  B9 rr rr     		lda OBJ_CHIP_MAP, y
+000894r 2  85 0E        		sta map_addr_upper				; 再利用
+000896r 2               
+000896r 2               
+000896r 2               		; バッファに保存（2キャラクターデータ、2アドレス、2キャラクターデータ、2アドレス）
+000896r 2  A5 0F        		lda map_vaddr_upper				; キャラクターのストア先アドレスをバッファに保存
+000898r 2  9D 10 06     		sta map_data_arr, x
+00089Br 2  E8           		inx
+00089Cr 2  A5 10        		lda map_vaddr_lower
+00089Er 2  9D 10 06     		sta map_data_arr, x
+0008A1r 2  E8           		inx
+0008A2r 2               
+0008A2r 2  A0 00        		ldy #$00
+0008A4r 2  B1 0D        		lda (map_addr_lower), y			; ブロックのキャラクターデータ（4つ）が格納された配列を取得
+0008A6r 2  9D 10 06     		sta map_data_arr, x				; キャラクター1つ目
+0008A9r 2  E8           		inx
+0008AAr 2  C8           		iny
+0008ABr 2  B1 0D        		lda (map_addr_lower), y
+0008ADr 2  9D 10 06     		sta map_data_arr, x
+0008B0r 2  E8           		inx
+0008B1r 2               
+0008B1r 2  A5 0F        		lda map_vaddr_upper				; キャラクターのストア先アドレスをバッファに保存
+0008B3r 2  9D 10 06     		sta map_data_arr, x
+0008B6r 2  E8           		inx
+0008B7r 2  A5 10        		lda map_vaddr_lower
+0008B9r 2  18 69 20     		add #$20
+0008BCr 2  9D 10 06     		sta map_data_arr, x
+0008BFr 2  E8           		inx
+0008C0r 2               
+0008C0r 2  C8           		iny
+0008C1r 2  B1 0D        		lda (map_addr_lower), y			; キャラクター3つ目
+0008C3r 2  9D 10 06     		sta map_data_arr, x
+0008C6r 2  E8           		inx
+0008C7r 2  C8           		iny
+0008C8r 2  B1 0D        		lda (map_addr_lower), y
+0008CAr 2  9D 10 06     		sta map_data_arr, x
+0008CDr 2  E8           		inx
+0008CEr 2               
+0008CEr 2  C6 00        		dec tmp1
+0008D0r 2  F0 15        		beq @END_SUB					; ループ終了
+0008D2r 2               
+0008D2r 2  A5 D0        		lda S_TRANSFAR_OBJDATA_TOBUFFER::addr_lower
+0008D4r 2  18 69 10     		add #$10
+0008D7r 2  85 D0        		sta S_TRANSFAR_OBJDATA_TOBUFFER::addr_lower
+0008D9r 2  A5 10        		lda map_vaddr_lower
+0008DBr 2  18 69 40     		add #$40
+0008DEr 2  85 10        		sta map_vaddr_lower
+0008E0r 2  90 02        		bcc @SKIP_INC_UPPER
+0008E2r 2  E6 0F        		inc map_vaddr_upper
+0008E4r 2               @SKIP_INC_UPPER:
+0008E4r 2  4C rr rr     		jmp @LOOP1
+0008E7r 2               
+0008E7r 2               @END_SUB:
+0008E7r 2  60           		rts  ; -------------------------
+0008E8r 2               
+0008E8r 2               
+0008E8r 2               ; ------------------------------------------------------------------------------
+0008E8r 2               ; RAM上のオブジェクトデータからパレットを計算する
+0008E8r 2               ; 引数無し
+0008E8r 2               ; A, X, Yレジスタ破壊
+0008E8r 2               ; 戻り値無し
+0008E8r 2               ; ------------------------------------------------------------------------------
+0008E8r 2               
+0008E8r 2               S_CALC_PALETTE:
+0008E8r 2  20 rr rr     		jsr S_SET_RAM_ADDR
+0008EBr 2               
+0008EBr 2  A5 14        		lda map_buff_lower
+0008EDr 2  85 05        		sta addr_lower
+0008EFr 2  A5 15        		lda map_buff_upper
+0008F1r 2  85 06        		sta addr_upper
+0008F3r 2               
+0008F3r 2  A2 00        		ldx #$00	; インクリメント
+0008F5r 2               @LOOP1:
+0008F5r 2  86 00        		stx tmp1
+0008F7r 2  8A           		txa
+0008F8r 2  4A           		lsr	; 右シフト（/2）
+0008F9r 2  AA           		tax	; これは後に使うXレジスタの内容
+0008FAr 2  A0 00        		ldy #$00	; 固定，破壊OK
+0008FCr 2  B1 05        		lda (addr_lower), y
+0008FEr 2  29 30        		and #%00110000
+000900r 2  4A 4A 4A 4A  		rsft4
+000904r 2  48           		pha	; 一時保存したAレジスタをスタックにきちんと保存（ここにパレットデータ）
+000905r 2               		; シフトしてYレジスタにシフト量を入れる
+000905r 2               		; xレジスタのbit0が0, N1のbit0が0（N1→X方向，Xレジスタ→Y方向）
+000905r 2               		; XレジスタはもうAレジスタに入っている
+000905r 2  A5 05        		lda addr_lower
+000907r 2  29 01        		and #%00000001
+000909r 2  85 01        		sta tmp2
+00090Br 2  A5 00        		lda tmp1
+00090Dr 2  29 01        		and #%00000001
+00090Fr 2  0A           		asl
+000910r 2  05 01        		ora tmp2
+000912r 2  A8           		tay	; 0~3でシフト量が入る（2倍して0, 2, 4, 6）
+000913r 2  D0 04        		bne @SKIP1
+000915r 2  68           		pla
+000916r 2  18           		clc
+000917r 2  90 09        		bcc @SKIP3  ; 強制ジャンプ
+000919r 2               @SKIP1:
+000919r 2  68           		pla
+00091Ar 2               @LOOP:
+00091Ar 2  0A           		asl
+00091Br 2  0A           		asl
+00091Cr 2  88           		dey
+00091Dr 2  D0 FB        		bne @LOOP
+00091Fr 2  1D 00 06     		ora plt_arr, x
+000922r 2               @SKIP3:
+000922r 2  9D 00 06     		sta plt_arr, x	; パレットデータをストア
+000925r 2               
+000925r 2  A6 00        		ldx tmp1
+000927r 2               
+000927r 2  A5 05        		lda addr_lower
+000929r 2  18 69 10     		add #$10
+00092Cr 2  85 05        		sta addr_lower
+00092Er 2               
+00092Er 2  E8           		inx
+00092Fr 2  E0 10        		cpx #$10
+000931r 2  F0 03        		beq @END
+000933r 2  4C rr rr     		jmp @LOOP1
+000936r 2               @END:
+000936r 2  60           		rts  ; -------------------------
+000937r 2               
+000937r 2               
+000937r 2               ; ------------------------------------------------------------------------------
+000937r 2               ; NMIでストアするパレットデータをバッファに転送
+000937r 2               ; 引数無し
+000937r 2               ; A, X, Yレジスタ破壊
+000937r 2               ; 戻り値無し
+000937r 2               ; ------------------------------------------------------------------------------
+000937r 2               
+000937r 2               S_TRANSFAR_PLT_TOBUFFER:
+000937r 2  A5 14        		lda map_buff_lower
+000939r 2  85 05        		sta addr_lower
+00093Br 2  A5 15        		lda map_buff_upper
+00093Dr 2  85 06        		sta addr_upper
+00093Fr 2               
+00093Fr 2  A5 06        		lda addr_upper
+000941r 2  C9 04        		cmp #$04
+000943r 2  D0 04        		bne @SKIP500
+000945r 2  A9 23        		lda #$23
+000947r 2  D0 02        		bne @SKIP1
+000949r 2               @SKIP500:
+000949r 2  A9 27        		lda #$27
+00094Br 2               @SKIP1:
+00094Br 2  85 03        		sta plt_vram_upper
+00094Dr 2               
+00094Dr 2  A2 00        		ldx #$00
+00094Fr 2  A0 00        		ldy #$00
+000951r 2               @LOOP1:
+000951r 2  A5 05        		lda addr_lower
+000953r 2  29 0E        		and #%00001110
+000955r 2  4A           		lsr	; 23c0の0を表す（下1ケタ）
+000956r 2  85 00        		sta tmp1
+000958r 2               		; 2桁目はループで回して求める
+000958r 2               		; 3桁目はループのキャリー
+000958r 2               		; 4桁目は画面1/2で切り替え
+000958r 2  8A           		txa
+000959r 2  0A           		asl
+00095Ar 2  0A           		asl
+00095Br 2  0A           		asl
+00095Cr 2  05 00        		ora tmp1
+00095Er 2  18 69 C0     		add #$c0
+000961r 2  48           		pha
+000962r 2  A9 00        		lda #$00
+000964r 2  18 65 03     		add plt_vram_upper
+000967r 2  85 03        		sta plt_vram_upper
+000969r 2               
+000969r 2  99 90 06     		sta plt_addr_arr, y	; UPPER
+00096Cr 2  C8           		iny
+00096Dr 2  68           		pla
+00096Er 2  99 90 06     		sta plt_addr_arr, y	; LOWER
+000971r 2  C8           		iny
+000972r 2  E8           		inx
+000973r 2  E0 08        		cpx #$08
+000975r 2  D0 DA        		bne @LOOP1
+000977r 2               
+000977r 2  60           		rts  ; -------------------------
+000978r 2               
+000978r 2               
+000978r 2               ; ------------------------------------------------------------------------------
+000978r 2               ; データ
+000978r 2               ; ------------------------------------------------------------------------------
+000978r 2               
+000978r 2               OBJ_CHIP_MAP:
+000978r 2  rr rr        		.word OBJ_SKY	; 00
+00097Ar 2  00 00        		.word $0000	; 41 A
+00097Cr 2  rr rr        		.word OBJ_BLOCK	; 42 B
+00097Er 2  00 00        		.word $0000	; 43 C
+000980r 2  00 00        		.word $0000	; 44 D
+000982r 2  00 00        		.word $0000	; 45 E
+000984r 2  00 00        		.word $0000	; 46 F
+000986r 2  rr rr        		.word OBJ_GROUND	; 47 G
+000988r 2  00 00        		.word $0000	; 48 H
+00098Ar 2  00 00        		.word $0000	; 49 I
+00098Cr 2  00 00        		.word $0000	; 4a J
+00098Er 2  00 00        		.word $0000	; 4b K
+000990r 2  00 00        		.word $0000	; 4c L
+000992r 2  00 00        		.word $0000	; 4d M
+000994r 2  00 00        		.word $0000	; 4e N
+000996r 2  00 00        		.word $0000	; 50 O
+000998r 2  00 00        		.word $0000	; 51 P
+00099Ar 2  rr rr        		.word OBJ_QBLOCK	; 52 Q
+00099Cr 2  00 00        		.word $0000	; 53 R
+00099Er 2  00 00        		.word $0000	; 54 S
+0009A0r 2  00 00        		.word $0000	; 55 T
+0009A2r 2  00 00        		.word $0000	; 56 U
+0009A4r 2  00 00        		.word $0000	; 57 V
+0009A6r 2  00 00        		.word $0000	; 58 W
+0009A8r 2  00 00        		.word $0000	; 59 X
+0009AAr 2  00 00        		.word $0000	; 5a Y
+0009ACr 2  00 00        		.word $0000	; 5b Z
+0009AEr 2               
+0009AEr 2               OBJ_SKY:
+0009AEr 2  00 00 00 00  		.byte VSKY, VSKY, VSKY, VSKY
+0009B2r 2               
+0009B2r 2               OBJ_GROUND:
+0009B2r 2  01 01 01 01  		.byte VGROUND, VGROUND, VGROUND, VGROUND
+0009B6r 2               
+0009B6r 2               OBJ_BLOCK:
+0009B6r 2  02 03 02 03  		.byte VBLOCK1, VBLOCK2, VBLOCK1, VBLOCK2
+0009BAr 2               
+0009BAr 2               OBJ_QBLOCK:
+0009BAr 2  10 11 12 13  		.byte VQBLOCK1, VQBLOCK2, VQBLOCK3, VQBLOCK4
+0009BEr 2               
+0009BEr 1               .include "./asm/status.asm"				; ステータス表示
+0009BEr 2               ; ------------------------------------------------------------------------------
+0009BEr 2               ; ゲームタイマーの表示
+0009BEr 2               ; 画面更新時に実行してゲームタイマーを更新する
+0009BEr 2               ; 引数なし
+0009BEr 2               ; Aレジスタ破壊
+0009BEr 2               ; 戻り値なし
+0009BEr 2               ; ------------------------------------------------------------------------------
+0009BEr 2               
+0009BEr 2               .scope S_DISP_TIME
+0009BEr 2               	UPPER = $20
+0009BEr 2               	LOWER = $7a
+0009BEr 2               .endscope
+0009BEr 2               
+0009BEr 2               S_DISP_TIME:
+0009BEr 2  A9 20        		lda #S_DISP_TIME::UPPER
+0009C0r 2  8D 06 20     		sta PPU_ADDRESS
+0009C3r 2  A9 7A        		lda #S_DISP_TIME::LOWER
+0009C5r 2  8D 06 20     		sta PPU_ADDRESS
+0009C8r 2  A5 3F        		lda game_timer_bcd1
+0009CAr 2  09 30        		ora #$30
+0009CCr 2  8D 07 20     		sta PPU_ACCESS
+0009CFr 2  A5 40        		lda game_timer_bcd2
+0009D1r 2  09 30        		ora #$30
+0009D3r 2  8D 07 20     		sta PPU_ACCESS
+0009D6r 2  A5 41        		lda game_timer_bcd3
+0009D8r 2  09 30        		ora #$30
+0009DAr 2  8D 07 20     		sta PPU_ACCESS
+0009DDr 2               
+0009DDr 2  60           		rts  ; -------------------------
+0009DEr 2               
+0009DEr 2               
+0009DEr 2               ; ------------------------------------------------------------------------------
+0009DEr 2               ; 32Fごとにフレームタイマーをデクリメント
+0009DEr 2               ; 引数なし
+0009DEr 2               ; Aレジスタ破壊
+0009DEr 2               ; 戻り値なし
+0009DEr 2               ; ------------------------------------------------------------------------------
+0009DEr 2               
+0009DEr 2               S_DEC_TIME:
+0009DEr 2  A5 F1        		lda frame_counter
+0009E0r 2  29 1F        		and #%00011111
+0009E2r 2  F0 01        		beq @DEC_TIME
+0009E4r 2  60           		rts  ; -------------------------
+0009E5r 2               @DEC_TIME:
+0009E5r 2  A9 01        		lda #$01
+0009E7r 2  85 42        		sta timer_update_flag
+0009E9r 2               
+0009E9r 2  A6 41        		ldx game_timer_bcd3
+0009EBr 2  CA           		dex
+0009ECr 2  E0 FF        		cpx #$ff
+0009EEr 2  F0 03        		beq @SKIP1
+0009F0r 2  86 41        		stx game_timer_bcd3
+0009F2r 2  60           		rts  ; -------------------------
+0009F3r 2               @SKIP1:
+0009F3r 2  A2 09        		ldx #$09
+0009F5r 2  86 41        		stx game_timer_bcd3
+0009F7r 2               
+0009F7r 2  A6 40        		ldx game_timer_bcd2
+0009F9r 2  CA           		dex
+0009FAr 2  E0 FF        		cpx #$ff
+0009FCr 2  F0 03        		beq @SKIP2
+0009FEr 2  86 40        		stx game_timer_bcd2
+000A00r 2  60           		rts  ; -------------------------
+000A01r 2               @SKIP2:
+000A01r 2  A2 09        		ldx #$09
+000A03r 2  86 40        		stx game_timer_bcd2
+000A05r 2               
+000A05r 2  A6 3F        		ldx game_timer_bcd1
+000A07r 2  CA           		dex
+000A08r 2  E0 FF        		cpx #$ff
+000A0Ar 2  F0 03        		beq @SKIP3
+000A0Cr 2  86 3F        		stx game_timer_bcd1
+000A0Er 2  60           		rts  ; -------------------------
+000A0Fr 2               @SKIP3:
+000A0Fr 2  A2 09        		ldx #$09
+000A11r 2  86 3F        		stx game_timer_bcd1
+000A13r 2               
+000A13r 2  60           		rts  ; -------------------------
+000A14r 2               
+000A14r 1               .include "./asm/sound.asm"				; 効果音
+000A14r 2               S_INIT_SOUND:
+000A14r 2  AD 15 40     	lda SOUND_CHANNEL
+000A17r 2  09 01        	ora #%00000001
+000A19r 2  8D 15 40     	sta SOUND_CHANNEL
+000A1Cr 2  A9 9F        	lda #%10011111
+000A1Er 2  8D 00 40     	sta SOUND_CH1_1						; Duty50%(2)、ループ無し、音響固定、ボリューム最大(4)
+000A21r 2  A9 00        	lda #%00000000
+000A23r 2  8D 01 40     	sta SOUND_CH1_2						; 周波数変化なし（bit7）、他は設定せず
+000A26r 2  60           	rts  ; -----------------------------
+000A27r 2               
+000A27r 2               S_SOUND:
+000A27r 2  20 rr rr     	jsr S_INIT_SOUND
+000A2Ar 2               	; サウンド番号取得
+000A2Ar 2  A5 44        	lda sound_ch1_num
+000A2Cr 2  D0 03        	bne @SOUND_NUM_N0
+000A2Er 2  85 46        	sta sound_ch1_num_prev
+000A30r 2  60           	rts  ; -----------------------------
+000A31r 2               @SOUND_NUM_N0:
+000A31r 2  C5 46        	cmp sound_ch1_num_prev
+000A33r 2  F0 0F        	beq @SOUND_INIT_SKIP
+000A35r 2  85 46        	sta sound_ch1_num_prev
+000A37r 2  A9 00        	lda #$00
+000A39r 2  85 45        	sta sound_ch1_counter
+000A3Br 2  A5 F1        	lda frame_counter
+000A3Dr 2  85 47        	sta sound_ch1_frame_cnt
+000A3Fr 2  A9 BF        	lda #%10111111
+000A41r 2  8D 00 40     	sta SOUND_CH1_1
+000A44r 2               @SOUND_INIT_SKIP:
+000A44r 2  A5 F1        	lda frame_counter
+000A46r 2  C5 47        	cmp sound_ch1_frame_cnt
+000A48r 2  F0 01        	beq @CHANGE_SOUND
+000A4Ar 2  60           	rts  ; -----------------------------
+000A4Br 2               @CHANGE_SOUND:
+000A4Br 2  A6 44        	ldx sound_ch1_num					; フレームカウンタの更新
+000A4Dr 2  CA           	dex
+000A4Er 2  A4 45        	ldy sound_ch1_counter
+000A50r 2  84 D0 8A 0A  	ldarr SOUND_TIME					; SOUND_TIME[num][cnt]
+000A54r 2  A8 B9 rr rr  
+000A58r 2  85 05 B9 rr  
+000A63r 2  D0 11        	bne @SKIP_SOUND_END
+000A65r 2  A9 00        	lda #$00
+000A67r 2  85 45        	sta sound_ch1_counter
+000A69r 2  85 44        	sta sound_ch1_num
+000A6Br 2  8D 02 40     	sta SOUND_CH1_3
+000A6Er 2  8D 03 40     	sta SOUND_CH1_4
+000A71r 2  A9 B0        	lda #%10110000
+000A73r 2  8D 00 40     	sta SOUND_CH1_1
+000A76r 2               @SKIP_SOUND_END:
+000A76r 2  18 65 F1     	add frame_counter
+000A79r 2  85 47        	sta sound_ch1_frame_cnt
+000A7Br 2               
+000A7Br 2  A6 44        	ldx sound_ch1_num					; 周波数下位8bitの設定
+000A7Dr 2  CA           	dex
+000A7Er 2  A4 45        	ldy sound_ch1_counter
+000A80r 2  84 D0 8A 0A  	ldarr SOUND_ADDR_LOWER
+000A84r 2  A8 B9 rr rr  
+000A88r 2  85 05 B9 rr  
+000A93r 2  8D 02 40     	sta SOUND_CH1_3
+000A96r 2               
+000A96r 2  A6 44        	ldx sound_ch1_num					; 音の長さ（bit0-4）、周波数上位3bit（bit5-7）の設定
+000A98r 2  CA           	dex
+000A99r 2  A4 45        	ldy sound_ch1_counter
+000A9Br 2  84 D0 8A 0A  	ldarr SOUND_ADDR_UPPER
+000A9Fr 2  A8 B9 rr rr  
+000AA3r 2  85 05 B9 rr  
+000AAEr 2  8D 03 40     	sta SOUND_CH1_4
+000AB1r 2               
+000AB1r 2  A6 44        	ldx sound_ch1_num
+000AB3r 2  CA           	dex
+000AB4r 2  E6 45        	inc sound_ch1_counter
+000AB6r 2               
+000AB6r 2  60           	rts  ; -----------------------------
+000AB7r 2               
+000AB7r 1               
+000AB7r 1               
+000AB7r 1               .segment "HEADER"
+000000r 1  4E 45 53 1A  		.byte $4e, $45, $53, $1a
+000004r 1  02           		.byte $02	; プログラムバンク
+000005r 1  01           		.byte $01	; キャラクターバンク
+000006r 1  01           		.byte $01	; 垂直ミラー
+000007r 1  00           		.byte $00
+000008r 1  00 00 00 00  		.byte $00, $00, $00, $00
+00000Cr 1  00 00 00 00  		.byte $00, $00, $00, $00
+000010r 1               
+000010r 1               .segment "STARTUP"
+000000r 1               .proc RESET
+000000r 1               		; IRQ初期化
+000000r 1  78           		sei								; IRQ禁止
+000001r 1  D8           		cld								; BCD禁止
+000002r 1               
+000002r 1               		; NesDevではAPUのフレームIRQを無効にしているが，特定のマッパーでのみ有効
+000002r 1  A2 FF        		ldx #$ff
+000004r 1  9A           		txs
+000005r 1  E8           		inx
+000006r 1  8E 00 20     		stx $2000						; NMI無効化
+000009r 1  8E 01 20     		stx $2001						; 描画停止
+00000Cr 1  8E 10 40     		stx $4010						; APU DMCのIRQ（bit7）無効化
+00000Fr 1               
+00000Fr 1               		/*
+00000Fr 1               		A & $2002の結果でZ（ゼロフラグ）設定
+00000Fr 1               		$2002のbit7 -> N（ネガティブフラグ）, bit6 -> V（オーバーフロー）に入る
+00000Fr 1               		$2002のbit7にはVblank，bit6は0爆弾の状態が入っている
+00000Fr 1               		リセット後のこのフラグは，状態が不定なので，一回bit命令でリセットが出来るらしい
+00000Fr 1               		*/
+00000Fr 1  2C 02 20     		bit $2002
+000012r 1               
+000012r 1               		; Vblank待機1回目
+000012r 1               @VBLANK_WAIT1:
+000012r 1  2C 02 20     		bit $2002
+000015r 1  10 FB        		bpl @VBLANK_WAIT1
+000017r 1               
+000017r 1               		; PPUが安定するまで約30,000サイクルの時間がある -> この間にRAMリセット
+000017r 1               
+000017r 1  8A           		txa									; X = 0
+000018r 1               
+000018r 1               		; RAM初期化
+000018r 1  A9 00 A2 00  		inirm $00, #$00
+00001Cr 1  95 00 CA D0  
+000020r 1  FB           
+000021r 1  A9 00 A2 00  		inirm $0100, #$00
+000025r 1  9D 00 01 CA  
+000029r 1  D0 FA        
+00002Br 1  A9 00 A2 00  		inirm $0200, #$00
+00002Fr 1  9D 00 02 CA  
+000033r 1  D0 FA        
+000035r 1  A9 FF A2 00  		inirm $0300, #$ff
+000039r 1  9D 00 03 CA  
+00003Dr 1  D0 FA        
+00003Fr 1  A9 00 A2 00  		inirm $0400, #$00
+000043r 1  9D 00 04 CA  
+000047r 1  D0 FA        
+000049r 1  A9 00 A2 00  		inirm $0500, #$00
+00004Dr 1  9D 00 05 CA  
+000051r 1  D0 FA        
+000053r 1  A9 00 A2 00  		inirm $0600, #$00
+000057r 1  9D 00 06 CA  
+00005Br 1  D0 FA        
+00005Dr 1  A9 00 A2 00  		inirm $0700, #$00
+000061r 1  9D 00 07 CA  
+000065r 1  D0 FA        
+000067r 1               
+000067r 1  20 rr rr     		jsr S_INIT_SOUND
+00006Ar 1               
+00006Ar 1               		; 値の設定
+00006Ar 1  A9 28        		lda #$28						; マリオのX座標（これはステージ読み込みを実装したとき移動させる）
+00006Cr 1  85 35        		sta mario_posx
+00006Er 1  85 2A        		sta move_amount_sum
+000070r 1               
+000070r 1  A9 C0        		lda #$c0						; マリオのY座標
+000072r 1  85 36        		sta mario_posy
+000074r 1  20 rr rr     		jsr S_RESET_PARAM_JUMP
+000077r 1               
+000077r 1               		; マリオの方向
+000077r 1  A9 01        		lda #$01
+000079r 1  85 25        		sta mario_x_direction
+00007Br 1  85 26        		sta mario_face_direction
+00007Dr 1  85 30        		sta ver_speed
+00007Fr 1               
+00007Fr 1               		; Vblank待機2回目
+00007Fr 1               @VBLANK_WAIT2:
+00007Fr 1  2C 02 20     		bit $2002
+000082r 1  10 FB        		bpl @VBLANK_WAIT2
+000084r 1               
+000084r 1  A2 00        	ldx #$00
+000086r 1  A0 00        	ldy #$00
+000088r 1               :
+000088r 1  CA           	dex
+000089r 1  D0 FD        	bne :-
+00008Br 1  88           	dey
+00008Cr 1  D0 FA        	bne :-
+00008Er 1               
+00008Er 1  A9 10        	lda #%00010000						; |NMI-OFF|PPU=MASTER|SPR8*8|BG$1000|SPR$0000|VRAM+1|SCREEN$2000|
+000090r 1  8D 00 20     	sta PPU_SET1
+000093r 1  A9 06        	lda #%00000110						; |R|G|B|DISP-SPR|DISP-BG|SHOW-L8-SPR|SHOW-L8-BG|MODE=COLOR|
+000095r 1  8D 01 20     	sta PPU_SET2
+000098r 1               
+000098r 1  A9 20 8D 06  		inivrm #$00
+00009Cr 1  20 A9 00 8D  
+0000A0r 1  06 20 A9 00  
+0000B1r 1               
+0000B1r 1               		; パレットテーブルの転送
+0000B1r 1  A9 3F        		lda #$3f
+0000B3r 1  8D 06 20     		sta PPU_ADDRESS
+0000B6r 1  A9 00        		lda #$00
+0000B8r 1  8D 06 20     		sta PPU_ADDRESS
+0000BBr 1  A9 0F        		lda #$0f
+0000BDr 1  8D 07 20     		sta PPU_ACCESS
+0000C0r 1               
+0000C0r 1               		; ステータスの表示
+0000C0r 1               		; 不透明キャラクター配置（ゼロスプライト用）
+0000C0r 1  A9 20        		lda #$20
+0000C2r 1  8D 06 20     		sta PPU_ADDRESS
+0000C5r 1  A9 60        		lda #$60
+0000C7r 1  8D 06 20     		sta PPU_ADDRESS
+0000CAr 1  A9 FF        		lda #$ff
+0000CCr 1  8D 07 20     		sta PPU_ACCESS
+0000CFr 1               
+0000CFr 1               		; "TIME" キャラクター表示
+0000CFr 1  A2 00        		ldx #$00
+0000D1r 1  BD rr rr     		lda STATUS_STR_TIME, x
+0000D4r 1  8D 06 20     		sta PPU_ADDRESS
+0000D7r 1  E8           		inx
+0000D8r 1  BD rr rr     		lda STATUS_STR_TIME, x
+0000DBr 1  8D 06 20     		sta PPU_ADDRESS
+0000DEr 1  E8           		inx
+0000DFr 1               @STORE_STATUS_TIME:
+0000DFr 1  BD rr rr     		lda STATUS_STR_TIME, x
+0000E2r 1  8D 07 20     		sta PPU_ACCESS
+0000E5r 1  E8           		inx
+0000E6r 1  E0 06        		cpx #$04+2
+0000E8r 1  D0 F5        		bne @STORE_STATUS_TIME
+0000EAr 1               
+0000EAr 1               		; タイマーセット
+0000EAr 1  A9 04        		lda #$04
+0000ECr 1  85 3F        		sta game_timer_bcd1
+0000EEr 1  A9 00        		lda #$00
+0000F0r 1  85 40        		sta game_timer_bcd2
+0000F2r 1  85 41        		sta game_timer_bcd3
+0000F4r 1  A9 01        		lda #$01
+0000F6r 1  85 42        		sta timer_update_flag
+0000F8r 1               
+0000F8r 1               .scope START
+0000F8r 1               	counter = $d2
+0000F8r 1               .endscope
+0000F8r 1               
+0000F8r 1               		; マップの描画
+0000F8r 1  A9 18        		lda #$18
+0000FAr 1  85 D2        		sta START::counter
+0000FCr 1               @STORE_MAP_INIT:
+0000FCr 1  20 rr rr     		jsr S_DRAW_ADDMAP				; マップを一列更新
+0000FFr 1  20 rr rr     		jsr S_TRANSFAR_OBJDATA_TOBUFFER
+000102r 1  20 rr rr     		jsr S_TRANSFAR_PLT_TOBUFFER
+000105r 1  20 rr rr     		jsr S_STORE_MAPOBJ_VRAM			; NMIで行っている作業
+000108r 1  20 rr rr     		jsr S_STORE_PLT_TO_BUFF
+00010Br 1  C6 D2        		dec START::counter
+00010Dr 1  D0 ED        		bne @STORE_MAP_INIT
+00010Fr 1               
+00010Fr 1               		; 0番スプライト
+00010Fr 1  A9 00        		lda #$00
+000111r 1  8D 03 03     		sta CHR_BUFFER::SPR0_POSX
+000114r 1  A9 17        		lda #$17
+000116r 1  8D 00 03     		sta CHR_BUFFER::SPR0_POSY
+000119r 1  A9 FF        		lda #$ff
+00011Br 1  8D 01 03     		sta CHR_BUFFER::SPR0_CHIP
+00011Er 1  A9 00        		lda #%00000000					; 垂直|水平|優先度下げる|3bit無効|パレット2bit
+000120r 1  8D 02 03     		sta CHR_BUFFER::SPR0_ATTR
+000123r 1               
+000123r 1  A9 00        		lda #0
+000125r 1  8D 03 20     		sta $2003
+000128r 1  A9 03        		lda #$03	; SPR転送
+00012Ar 1  8D 14 40     		sta PPU_DMA
+00012Dr 1               
+00012Dr 1               		; パレットテーブルの転送
+00012Dr 1  A9 3F        		lda #$3f
+00012Fr 1  8D 06 20     		sta PPU_ADDRESS
+000132r 1  A9 00        		lda #$00
+000134r 1  8D 06 20     		sta PPU_ADDRESS
+000137r 1  A2 00        		ldx #$00
+000139r 1               @STORE_PAL:
+000139r 1  BD rr rr     		lda INITIAL_PLT, x
+00013Cr 1  8D 07 20     		sta PPU_ACCESS
+00013Fr 1  E8           		inx
+000140r 1  E0 20        		cpx #$20
+000142r 1  D0 F5        		bne @STORE_PAL
+000144r 1               
+000144r 1               		; スクリーンON
+000144r 1  A9 88        		lda #%10001000	; NMI-ON, SPR=$1000
+000146r 1  8D 00 20     		sta PPU_SET1
+000149r 1  A9 1E        		lda #%00011110	; すべて表示
+00014Br 1  8D 01 20     		sta PPU_SET2
+00014Er 1               
+00014Er 1  A9 00        		lda #$00
+000150r 1  8D 05 20     		sta PPU_SCROLL
+000153r 1  8D 05 20     		sta PPU_SCROLL
+000156r 1               
+000156r 1  4C rr rr     		jmp MAINLOOP
+000159r 1               .endproc
+000159r 1               
+000159r 1               .proc MAINLOOP
+000159r 1               		; メイン動作が終わっていれば（=1なら）
+000159r 1               		; ループを回してNMI待ち
+000159r 1  A5 F2        		lda isend_main
+00015Br 1  D0 FC        		bne MAINLOOP
+00015Dr 1  20 rr rr     		jsr S_MAIN	; メインルーチン
+000160r 1               
+000160r 1  4C rr rr     		jmp MAINLOOP
+000163r 1               .endproc
+000163r 1               
+000163r 1               
+000163r 1               .proc NMI
+000163r 1  48           		pha
+000164r 1               		; inc nmi_counter
+000164r 1               		; メイン処理が終わっていれば（=1）NMIのメイン処理を実行
+000164r 1  A5 F2        		lda isend_main
+000166r 1  D0 02        		bne @START_DRAW_DISP
+000168r 1  68           		pla
+000169r 1  40           		rti
+00016Ar 1               @START_DRAW_DISP:
+00016Ar 1  8A           		txa
+00016Br 1  48           		pha
+00016Cr 1  98           		tya
+00016Dr 1  48           		pha
+00016Er 1  E6 F1        		inc frame_counter
+000170r 1               		; オブジェクト，属性テーブル，スプライト転送
+000170r 1  A5 F1        		lda frame_counter				; 偶数：オブジェクト、奇数：パレット
+000172r 1  29 01        		and #%00000001
+000174r 1  D0 05        		bne @STORE_PLT
+000176r 1  20 rr rr     		jsr S_STORE_MAPOBJ_VRAM
+000179r 1  F0 03        		beq @SKIP_STORE_PLT
+00017Br 1               @STORE_PLT:
+00017Br 1  20 rr rr     		jsr S_STORE_PLT_TO_BUFF
+00017Er 1               @SKIP_STORE_PLT:
+00017Er 1  A5 42        		lda timer_update_flag
+000180r 1  F0 07        		beq @SKIP_UPDATE_TIME
+000182r 1  20 rr rr     		jsr S_DISP_TIME
+000185r 1  A9 00        		lda #$00
+000187r 1  85 42        		sta timer_update_flag
+000189r 1               @SKIP_UPDATE_TIME:
+000189r 1  A9 03        		lda #$03						; SPR転送
+00018Br 1  8D 14 40     		sta PPU_DMA
+00018Er 1  20 rr rr     		jsr S_SET_SCROLL				; スクロールレジスタ設定
+000191r 1  85 F2        		sta isend_main					; フラグリセット
+000193r 1               @WAIT_END_VBLANK:						; VBlank終了待ち
+000193r 1  2C 02 20     		bit PPU_STATUS
+000196r 1  70 FB        		bvs @WAIT_END_VBLANK
+000198r 1               
+000198r 1  68           		pla
+000199r 1  A8           		tay
+00019Ar 1  68           		pla
+00019Br 1  AA           		tax
+00019Cr 1  68           		pla
+00019Dr 1  40           		rti
+00019Er 1               .endproc
+00019Er 1               
+00019Er 1               
+00019Er 1               .proc IRQ
+00019Er 1  40           		rti
+00019Fr 1               .endproc
+00019Fr 1               
+00019Fr 1               
+00019Fr 1               .segment "CHARS"
+000000r 1  00 00 00 00  		.incbin "bg-spr.chr"
+000004r 1  00 00 00 00  
+000008r 1  00 00 00 00  
+002000r 1               
+002000r 1               .segment "VECTORS"
+000000r 1  rr rr        		.word NMI
+000002r 1  rr rr        		.word RESET
+000004r 1  rr rr        		.word IRQ
+000004r 1               

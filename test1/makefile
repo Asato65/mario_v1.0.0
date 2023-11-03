@@ -3,24 +3,23 @@ ASMFILE = $(FILENAME).asm
 OBJFILE = $(FILENAME).o
 NESFILE = $(FILENAME).nes
 DBGFILE = $(FILENAME).dbg
+LSTFILE = $(FILENAME).lst
+MAPFILE = $(FILENAME).map
 CFGFILE = /.vscode/sample1.cfg
 ASSEMBLER = ca65
 LINKER = ld65
 EMULATOR = Mesen
 
-all : clean build play
+all : build play
 
 build : $(NESFILE) $(OBJFILE)
 
 play : $(NESFILE)
 	$(EMULATOR) $(NESFILE)
 
-clean :
-	-rm $(OBJFILE) $(DBGFILE)
-	-del $(OBJFILE) $(DBGFILE)
 
 $(OBJFILE) : $(ASMFILE)
-	$(ASSEMBLER) $(ASMFILE) -g
+	$(ASSEMBLER) $(ASMFILE) -t none --debug --debug-info --listing $(LSTFILE)
 
 $(NESFILE) : $(OBJFILE)
-	$(LINKER) -t nes --dbgfile $(DBGFILE) --cfg-path $(CFGFILE) -o $(NESFILE) $(OBJFILE)
+	$(LINKER) -vm --mapfile $(MAPFILE) --dbgfile $(DBGFILE) --config $(CFGFILE) -o $(NESFILE) $(OBJFILE)

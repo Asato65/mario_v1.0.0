@@ -5,8 +5,8 @@
 MAP1_1_POS:
 	; 1
 	;.byte $21	; X 2, Y 1に配置
-	.byte $0b, $0c
-	.byte $16, $1a, $1b;, $1c
+	.byte $02, $03
+	.byte $12, $13, $1b, $1c
 	.byte $2b
 	.byte $3a, $3b
 	.byte $79
@@ -36,8 +36,8 @@ MAP1_1_POS:
 	.byte $ff
 
 MAP1_1_OBJ:
-	.byte BLOCK, BLOCK
-	.byte BLOCK, BLOCK, BLOCK;, BLOCK
+	.byte QBLOCK, BLOCK
+	.byte BLOCK, BLOCK, BLOCK, BLOCK
 	.byte BLOCK
 	.byte BLOCK, BLOCK
 	.byte BLOCK

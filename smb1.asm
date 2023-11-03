@@ -220,14 +220,12 @@
 
 
 .proc NMI
-		php
 		pha
 		; inc nmi_counter
 		; メイン処理が終わっていれば（=1）NMIのメイン処理を実行
 		lda isend_main
 		bne @START_DRAW_DISP
 		pla
-		plp
 		rti
 @START_DRAW_DISP:
 		txa
@@ -263,7 +261,6 @@
 		pla
 		tax
 		pla
-		plp
 		rti
 .endproc
 

@@ -14,6 +14,7 @@ VQBLOCK2 = $11
 VQBLOCK3 = $12
 VQBLOCK4 = $13
 
+; unused
 PSKY = $00
 PGROUND = $00
 PBLOCK = $00
